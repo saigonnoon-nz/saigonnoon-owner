@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Saigon Noon — Command Center</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+// ── PASSWORD GATE ──
+// Change OWNER_PASS to whatever password you want
+const OWNER_PASS = 'saigon2025';
+const SESSION_KEY = 'sn_owner_auth';
+function checkAuth() {
+  if (sessionStorage.getItem(SESSION_KEY) === '1') return;
+  document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('authGate').style.display = 'flex';
+    document.getElementById('authPwInput').focus();
+  });
+}
+function tryLogin() {
+  const val = document.getElementById('authPwInput').value;
+  if (val === OWNER_PASS) {
+    sessionStorage.setItem(SESSION_KEY, '1');
+    document.getElementById('authGate').style.display = 'none';
+  } else {
+    const err = document.getElementById('authErr');
+    err.textContent = 'Incorrect password';
+    document.getElementById('authPwInput').value = '';
+    document.getElementById('authPwInput').focus();
+    setTimeout(() => { err.textContent = ''; }, 2000);
+  }
+}
+document.addEventListener('keydown', function(e) {
+  if (document.getElementById('authGate') && document.getElementById('authGate').style.display !== 'none') {
+    if (e.key === 'Enter') tryLogin();
+  }
+});
+checkAuth();
+</script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:#080c14; --s1:#0d1421; --s2:#111827; --s3:#1a2236;
+  --border:rgba(0,212,255,.12); --border2:rgba(0,212,255,.25);
+  --cyan:#00d4ff; --cyan-dim:rgba(0,212,255,.08);
+  --purple:#a855f7; --green:#10b981; --red:#ef4444; --orange:#f59e0b;
+  --t1:#f1f5f9; --t2:#94a3b8; --t3:#475569;
+}
+body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--t1); min-height:100vh; }
+
+/* HEADER */
+.header { background:rgba(8,12,20,.95); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); padding:0 28px; height:60px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
+.logo-area { display:flex; align-items:center; gap:12px; }
+.logo-icon { width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#ef4444,#dc2626); box-shadow:0 0 16px rgba(239,68,68,.4); display:flex; align-items:center; justify-content:center; font-size:17px; }
+.logo-text { font-size:16px; font-weight:800; letter-spacing:-.3px; }
+.logo-text span { color:var(--cyan); }
+.logo-sub { font-size:10px; color:var(--t3); text-transform:uppercase; letter-spacing:1.5px; margin-top:1px; }
+.header-right { display:flex; align-items:center; gap:16px; }
+.live-badge { display:flex; align-items:center; gap:6px; background:rgba(16,185,129,.1); border:1px solid rgba(16,185,129,.25); border-radius:20px; padding:4px 12px; font-size:11px; font-weight:700; color:#10b981; text-transform:uppercase; letter-spacing:.8px; }
+.live-dot { width:6px; height:6px; border-radius:50%; background:#10b981; animation:blink 1.5s infinite; }
+@keyframes blink { 0%,100%{opacity:1;box-shadow:0 0 4px #10b981} 50%{opacity:.3;box-shadow:none} }
+.clock { font-size:12px; color:var(--t3); font-family:monospace; letter-spacing:1px; }
+
+/* NAV */
+.nav { background:var(--s1); border-bottom:1px solid var(--border); padding:0 28px; display:flex; overflow-x:auto; }
+.nav-item { padding:14px 20px; cursor:pointer; font-size:12px; font-weight:700; color:var(--t3); border-bottom:2px solid transparent; white-space:nowrap; transition:all .2s; text-transform:uppercase; letter-spacing:.8px; display:flex; align-items:center; gap:7px; }
+.nav-item:hover { color:var(--cyan); }
+.nav-item.active { color:var(--cyan); border-bottom-color:var(--cyan); }
+
+/* TOOLBAR */
+.toolbar { background:var(--s1); border-bottom:1px solid var(--border); padding:10px 28px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.period-group { display:flex; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:2px; }
+.period-btn { padding:5px 14px; border:none; border-radius:6px; background:transparent; color:var(--t3); font-size:11px; font-weight:700; cursor:pointer; transition:all .15s; text-transform:uppercase; letter-spacing:.6px; }
+.period-btn.active { background:var(--cyan-dim); color:var(--cyan); border:1px solid var(--border2); }
+.date-input { border:1px solid var(--border); border-radius:8px; padding:5px 12px; font-size:12px; color:var(--t1); background:var(--bg); cursor:pointer; }
+.date-input:focus { outline:none; border-color:var(--cyan); }
+.refresh-btn { background:linear-gradient(135deg,#00d4ff,#0ea5e9); color:#000; border:none; padding:6px 16px; border-radius:8px; font-size:11px; font-weight:800; cursor:pointer; letter-spacing:.5px; text-transform:uppercase; transition:all .2s; box-shadow:0 0 14px rgba(0,212,255,.3); }
+.refresh-btn:hover { box-shadow:0 0 22px rgba(0,212,255,.5); transform:translateY(-1px); }
+
+/* MAIN */
+.main { padding:24px 28px; max-width:1440px; margin:0 auto; }
+.section { display:none; }
+.section.active { display:block; }
+
+/* CARDS */
+.card { background:var(--s1); border:1px solid var(--border); border-radius:14px; padding:20px; box-shadow:0 4px 24px rgba(0,0,0,.3); margin-bottom:20px; }
+.card-title { font-size:11px; font-weight:800; color:var(--t3); text-transform:uppercase; letter-spacing:1.2px; margin-bottom:16px; display:flex; align-items:center; justify-content:space-between; }
+.card-title .accent { color:var(--cyan); }
+
+/* KPI */
+.kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; margin-bottom:20px; }
+.kpi { background:var(--s1); border:1px solid var(--border); border-radius:14px; padding:18px 20px; position:relative; overflow:hidden; transition:border-color .2s,box-shadow .2s; }
+.kpi:hover { border-color:var(--border2); box-shadow:0 0 20px rgba(0,212,255,.06); }
+.kpi-glow { position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg,transparent,var(--glow-col),transparent); }
+.kpi-icon { font-size:22px; margin-bottom:10px; }
+.kpi-lbl { font-size:10px; color:var(--t3); font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
+.kpi-val { font-size:26px; font-weight:800; color:var(--t1); font-variant-numeric:tabular-nums; }
+.kpi-sub { font-size:11px; color:var(--t3); margin-top:4px; }
+.kpi-badge { position:absolute; top:16px; right:16px; font-size:10px; font-weight:800; padding:2px 8px; border-radius:5px; text-transform:uppercase; letter-spacing:.5px; }
+.badge-green { background:rgba(16,185,129,.15); color:#10b981; border:1px solid rgba(16,185,129,.25); }
+.badge-red   { background:rgba(239,68,68,.15); color:#ef4444; border:1px solid rgba(239,68,68,.25); }
+.badge-warn  { background:rgba(245,158,11,.15); color:#f59e0b; border:1px solid rgba(245,158,11,.25); }
+
+/* LAYOUT */
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px; }
+.three-col { display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; margin-bottom:20px; }
+@media(max-width:900px){ .two-col,.three-col { grid-template-columns:1fr; } }
+.chart-wrap { position:relative; height:220px; }
+
+/* STAT ROWS */
+.stat-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid rgba(255,255,255,.04); font-size:12px; }
+.stat-row:last-child { border-bottom:none; }
+.stat-lbl { color:var(--t2); }
+.stat-val { font-weight:700; color:var(--t1); font-variant-numeric:tabular-nums; }
+.stat-val.pos { color:var(--green); }
+.stat-val.neg { color:var(--red); }
+.stat-val.warn { color:var(--orange); }
+.stat-val.cyan { color:var(--cyan); }
+
+/* COST BARS */
+.cbar-row { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.cbar-lbl { font-size:11px; color:var(--t2); width:54px; flex-shrink:0; }
+.cbar-track { flex:1; background:rgba(255,255,255,.05); border-radius:3px; height:6px; overflow:hidden; }
+.cbar-fill { height:100%; border-radius:3px; transition:width .7s cubic-bezier(.4,0,.2,1); }
+.cbar-fill.g { background:linear-gradient(90deg,#10b981,#059669); }
+.cbar-fill.a { background:linear-gradient(90deg,#f59e0b,#d97706); }
+.cbar-fill.r { background:linear-gradient(90deg,#ef4444,#dc2626); }
+.cbar-pct { font-size:10px; color:var(--t3); width:34px; text-align:right; font-weight:700; }
+
+/* CHANNELS */
+.ch-pill { display:flex; align-items:center; gap:8px; padding:8px 12px; background:var(--s2); border:1px solid var(--border); border-radius:8px; margin-bottom:6px; }
+.ch-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.ch-name { font-size:12px; color:var(--t2); flex:1; }
+.ch-bar-wrap { width:80px; background:rgba(255,255,255,.05); border-radius:3px; height:4px; }
+.ch-bar { height:4px; border-radius:3px; }
+.ch-amt { font-size:12px; font-weight:700; color:var(--t1); width:70px; text-align:right; }
+
+/* TABLE */
+.tbl { width:100%; border-collapse:collapse; font-size:12px; }
+.tbl th { padding:8px 10px; text-align:left; font-size:10px; font-weight:700; color:var(--t3); text-transform:uppercase; letter-spacing:.8px; border-bottom:1px solid var(--border); }
+.tbl td { padding:9px 10px; border-bottom:1px solid rgba(255,255,255,.04); color:var(--t1); }
+.tbl tr:last-child td { border-bottom:none; }
+.tbl tr:hover td { background:rgba(0,212,255,.03); }
+
+/* PILLS */
+.pill { font-size:10px; padding:2px 7px; border-radius:4px; font-weight:700; display:inline-block; }
+.pill-cbd  { background:rgba(239,68,68,.15); color:#ef4444; }
+.pill-rot  { background:rgba(59,130,246,.15); color:#60a5fa; }
+.pill-both { background:rgba(16,185,129,.15); color:#10b981; }
+.pill-foh  { background:rgba(168,85,247,.15); color:#a855f7; }
+.pill-boh  { background:rgba(245,158,11,.15); color:#f59e0b; }
+.pill-on   { background:rgba(16,185,129,.15); color:#10b981; }
+.pill-off  { background:rgba(100,116,139,.15); color:#94a3b8; }
+
+/* BRANCH HEADER */
+.branch-header { font-size:13px; font-weight:800; margin-bottom:14px; }
+
+/* BRANCH TABS */
+.branch-tabs { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+.branch-tab { padding:7px 18px; border-radius:8px; border:1px solid var(--border); background:var(--s2); color:var(--t3); font-size:11px; font-weight:700; cursor:pointer; transition:all .2s; text-transform:uppercase; letter-spacing:.6px; }
+.branch-tab.cbd { background:rgba(239,68,68,.1); border-color:rgba(239,68,68,.3); color:#ef4444; }
+.branch-tab.rot { background:rgba(59,130,246,.1); border-color:rgba(59,130,246,.3); color:#60a5fa; }
+
+/* LABOUR SUB TABS */
+.sub-tabs { display:flex; gap:6px; margin-bottom:20px; }
+.sub-tab { padding:7px 16px; border-radius:8px; border:1px solid var(--border); background:var(--s2); color:var(--t3); font-size:11px; font-weight:700; cursor:pointer; transition:all .2s; text-transform:uppercase; letter-spacing:.6px; }
+.sub-tab.active { background:var(--cyan-dim); border-color:var(--border2); color:var(--cyan); }
+
+/* STAFF PROFILE CARDS */
+.staff-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; }
+.staff-card { background:var(--s2); border:1px solid var(--border); border-radius:12px; padding:16px; transition:border-color .2s,box-shadow .2s; cursor:pointer; }
+.staff-card:hover { border-color:var(--border2); box-shadow:0 0 16px rgba(0,212,255,.08); }
+.staff-card-top { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+.staff-avatar { width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:800; flex-shrink:0; }
+.staff-name { font-size:14px; font-weight:800; color:var(--t1); }
+.staff-pos { font-size:11px; color:var(--t3); margin-top:2px; }
+.staff-detail { font-size:11px; color:var(--t2); margin-bottom:4px; display:flex; align-items:center; gap:6px; }
+.staff-detail span { color:var(--t3); }
+.staff-wage { font-size:16px; font-weight:800; color:var(--cyan); margin-top:10px; }
+.staff-wage-lbl { font-size:10px; color:var(--t3); }
+
+/* ROSTER TABLE */
+.roster-wrap { overflow-x:auto; }
+.roster-tbl { width:100%; border-collapse:collapse; font-size:12px; min-width:600px; }
+.roster-tbl th { padding:9px 8px; text-align:center; font-size:10px; font-weight:700; color:var(--cyan); text-transform:uppercase; letter-spacing:.8px; border-bottom:1px solid var(--border); white-space:nowrap; }
+.roster-tbl th.name-col { text-align:left; color:var(--t3); width:100px; }
+.roster-tbl td { padding:4px 4px; border-bottom:1px solid rgba(255,255,255,.04); text-align:center; vertical-align:middle; }
+.roster-tbl td.name-col { text-align:left; padding:4px 8px; }
+.roster-tbl tr:hover td { background:rgba(0,212,255,.02); }
+.roster-tbl .section-hdr td { background:var(--s2); padding:6px 8px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:1px; border-top:1px solid var(--border); }
+.roster-tbl .section-hdr-boh td { color:var(--orange); }
+.roster-tbl .section-hdr-foh td { color:var(--purple); }
+.roster-tbl .total-row td { background:rgba(0,212,255,.04); font-weight:700; color:var(--cyan); font-size:11px; border-top:1px solid var(--border); }
+.roster-tbl .total-row td.name-col { color:var(--t3); }
+
+/* SHIFT CELL */
+.shift-input { background:transparent; border:1px solid transparent; border-radius:5px; padding:4px 6px; font-size:11px; color:var(--t1); text-align:center; width:100%; min-width:90px; font-family:inherit; transition:all .15s; outline:none; }
+.shift-input:hover { border-color:var(--border); background:var(--s2); }
+.shift-input:focus { border-color:var(--cyan); background:var(--s3); }
+.shift-input.has-shift { color:var(--t1); }
+.shift-input.no-shift { color:var(--t3); }
+.shift-input.closed { color:var(--orange); }
+.hours-cell { font-size:10px; color:var(--t3); font-weight:700; margin-top:1px; }
+
+/* ROSTER FOOTER */
+.roster-footer { display:flex; gap:16px; flex-wrap:wrap; margin-top:14px; padding-top:14px; border-top:1px solid var(--border); }
+.rf-stat { text-align:center; }
+.rf-lbl { font-size:9px; color:var(--t3); font-weight:700; text-transform:uppercase; letter-spacing:.8px; }
+.rf-val { font-size:15px; font-weight:800; color:var(--cyan); }
+
+/* MODAL */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.75); backdrop-filter:blur(4px); z-index:200; display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity .2s; }
+.modal-overlay.open { opacity:1; pointer-events:all; }
+.modal { background:var(--s1); border:1px solid var(--border2); border-radius:16px; padding:28px; width:500px; max-width:95vw; max-height:90vh; overflow-y:auto; box-shadow:0 0 60px rgba(0,212,255,.15); }
+.modal h3 { font-size:16px; font-weight:800; color:var(--t1); margin-bottom:20px; }
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.form-group { display:flex; flex-direction:column; gap:5px; }
+.form-group.full { grid-column:1/-1; }
+.form-group label { font-size:10px; font-weight:700; color:var(--t3); text-transform:uppercase; letter-spacing:.8px; }
+.form-group input, .form-group select { background:var(--s2); border:1px solid var(--border); border-radius:8px; padding:8px 12px; font-size:13px; color:var(--t1); outline:none; transition:border-color .2s; width:100%; }
+.form-group input:focus, .form-group select:focus { border-color:var(--cyan); }
+.form-group select option { background:var(--s2); }
+.modal-btns { display:flex; gap:10px; margin-top:20px; justify-content:flex-end; }
+.btn-primary { background:linear-gradient(135deg,#00d4ff,#0ea5e9); color:#000; border:none; padding:9px 20px; border-radius:8px; font-size:12px; font-weight:800; cursor:pointer; box-shadow:0 0 14px rgba(0,212,255,.3); }
+.btn-secondary { background:var(--s2); border:1px solid var(--border); color:var(--t2); padding:9px 20px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; }
+.btn-danger { background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.3); color:#ef4444; padding:9px 20px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; margin-right:auto; }
+.add-btn { display:flex; align-items:center; gap:7px; background:var(--cyan-dim); border:1px solid var(--border2); color:var(--cyan); padding:7px 16px; border-radius:8px; font-size:11px; font-weight:800; cursor:pointer; transition:all .2s; text-transform:uppercase; letter-spacing:.6px; }
+.add-btn:hover { background:rgba(0,212,255,.15); }
+
+/* AI */
+.ai-btns { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+.ai-btn { padding:6px 14px; border:1px solid var(--border); border-radius:8px; background:var(--s2); color:var(--t2); font-size:11px; font-weight:700; cursor:pointer; transition:all .2s; text-transform:uppercase; letter-spacing:.5px; }
+.ai-btn:hover { border-color:var(--cyan); color:var(--cyan); background:var(--cyan-dim); }
+.ai-output { background:var(--s2); border:1px solid var(--border); border-radius:10px; padding:16px; font-size:13px; line-height:1.7; color:var(--t2); min-height:80px; white-space:pre-wrap; }
+.ai-output.loading { color:var(--cyan); }
+.ai-output.error { color:var(--red); }
+
+/* BANK */
+.upload-zone { border:2px dashed var(--border); border-radius:12px; padding:28px; text-align:center; cursor:pointer; transition:all .2s; margin-bottom:16px; }
+.upload-zone:hover { border-color:var(--cyan); background:var(--cyan-dim); }
+.upload-zone p { font-size:13px; color:var(--t3); margin-top:8px; }
+
+/* MISC */
+.glow-sep { height:1px; background:linear-gradient(90deg,transparent,var(--border2),transparent); margin:16px 0; }
+.empty { text-align:center; padding:40px; color:var(--t3); font-size:13px; }
+::-webkit-scrollbar { width:6px; height:6px; }
+::-webkit-scrollbar-track { background:var(--bg); }
+::-webkit-scrollbar-thumb { background:var(--s3); border-radius:3px; }
+</style>
+</head>
+<body>
+
+<!-- AUTH GATE -->
+<div id="authGate" style="display:none;position:fixed;inset:0;background:#080c14;z-index:9999;flex-direction:column;align-items:center;justify-content:center">
+  <div style="text-align:center;margin-bottom:32px">
+    <div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,#ef4444,#dc2626);box-shadow:0 0 24px rgba(239,68,68,.5);display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 14px">🍜</div>
+    <div style="font-size:22px;font-weight:800;color:#f1f5f9">Saigon<span style="color:#00d4ff">Noon</span></div>
+    <div style="font-size:11px;color:#475569;text-transform:uppercase;letter-spacing:1.5px;margin-top:4px">Owner Command Center</div>
+  </div>
+  <div style="background:#0d1421;border:1px solid rgba(0,212,255,.2);border-radius:16px;padding:32px;width:320px;max-width:90vw;box-shadow:0 0 40px rgba(0,212,255,.1)">
+    <div style="font-size:12px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Password</div>
+    <input id="authPwInput" type="password" placeholder="Enter password…"
+      style="width:100%;background:#111827;border:1px solid rgba(0,212,255,.2);border-radius:8px;padding:12px 14px;font-size:15px;color:#f1f5f9;outline:none;margin-bottom:12px"
+      onfocus="this.style.borderColor='#00d4ff'" onblur="this.style.borderColor='rgba(0,212,255,.2)'">
+    <button onclick="tryLogin()"
+      style="width:100%;background:linear-gradient(135deg,#00d4ff,#0ea5e9);color:#000;border:none;padding:12px;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;letter-spacing:.5px;text-transform:uppercase">
+      Enter Dashboard
+    </button>
+    <div id="authErr" style="color:#ef4444;font-size:12px;text-align:center;margin-top:10px;min-height:18px"></div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo-area">
+    <div class="logo-icon">🍜</div>
+    <div>
+      <div class="logo-text">Saigon<span>Noon</span></div>
+      <div class="logo-sub">Command Center</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="clock" id="clock">--:--:--</div>
+    <div class="live-badge" id="liveBadge"><div class="live-dot"></div><span id="liveText">Connecting…</span></div>
+  </div>
+</div>
+
+<!-- NAV -->
+<div class="nav">
+  <div class="nav-item active" onclick="showSection('overview',this)">⚡ Overview</div>
+  <div class="nav-item" onclick="showSection('branches',this)">🏪 Branches</div>
+  <div class="nav-item" onclick="showSection('foodcost',this)">🥗 Food Cost</div>
+  <div class="nav-item" onclick="showSection('labour',this)">👥 Labour</div>
+  <div class="nav-item" onclick="showSection('cashflow',this)">💸 Cash Flow</div>
+  <div class="nav-item" onclick="showSection('ai',this)">🤖 AI Analysis</div>
+</div>
+
+<!-- TOOLBAR -->
+<div class="toolbar">
+  <div class="period-group">
+    <button class="period-btn active" onclick="setPeriod('weekly',this)">Weekly</button>
+    <button class="period-btn" onclick="setPeriod('monthly',this)">Monthly</button>
+  </div>
+  <input type="date" class="date-input" id="dateInput">
+  <button class="refresh-btn" onclick="loadAll()">↻ Refresh</button>
+</div>
+
+<div class="main">
+
+<!-- OVERVIEW -->
+<div class="section active" id="sec-overview">
+  <div class="kpi-grid">
+    <div class="kpi" style="--glow-col:#00d4ff"><div class="kpi-glow"></div><div class="kpi-icon">💰</div><div class="kpi-lbl">Net Sales</div><div class="kpi-val" id="kpiNet">—</div><div class="kpi-sub" id="kpiNetSub"></div></div>
+    <div class="kpi" style="--glow-col:#10b981"><div class="kpi-glow"></div><div class="kpi-icon">📈</div><div class="kpi-lbl">Gross Sales</div><div class="kpi-val" id="kpiGross">—</div><div class="kpi-sub">Before commission</div></div>
+    <div class="kpi" style="--glow-col:#a855f7"><div class="kpi-glow"></div><div class="kpi-icon">🧾</div><div class="kpi-lbl">Food Cost</div><div class="kpi-val" id="kpiFood">—</div><div class="kpi-sub" id="kpiFoodSub">Target &lt;30%</div><div class="kpi-badge" id="kpiFoodBadge"></div></div>
+    <div class="kpi" style="--glow-col:#f59e0b"><div class="kpi-glow"></div><div class="kpi-icon">🏷️</div><div class="kpi-lbl">Commission</div><div class="kpi-val" id="kpiComm">—</div><div class="kpi-sub" id="kpiCommSub"></div></div>
+    <div class="kpi" style="--glow-col:#ef4444"><div class="kpi-glow"></div><div class="kpi-icon">👥</div><div class="kpi-lbl">Labour Cost</div><div class="kpi-val" id="kpiLabour">—</div><div class="kpi-sub" id="kpiLabourSub">Target &lt;35%</div><div class="kpi-badge" id="kpiLabourBadge"></div></div>
+    <div class="kpi" style="--glow-col:#10b981"><div class="kpi-glow"></div><div class="kpi-icon">🟢</div><div class="kpi-lbl">Net Profit</div><div class="kpi-val" id="kpiProfit">—</div><div class="kpi-sub" id="kpiProfitSub"></div><div class="kpi-badge" id="kpiProfitBadge"></div></div>
+  </div>
+  <div class="two-col">
+    <div class="card"><div class="card-title">Daily Sales — CBD vs Rototuna <span class="accent">Bar</span></div><div class="chart-wrap"><canvas id="salesChart"></canvas></div></div>
+    <div class="card"><div class="card-title">Cost Breakdown <span class="accent">Donut</span></div><div class="chart-wrap"><canvas id="costChart"></canvas></div></div>
+  </div>
+  <div class="two-col">
+    <div class="card"><div class="card-title">Sales Channels</div><div id="channelBreakdown"></div></div>
+    <div class="card"><div class="card-title">Top Suppliers <span class="accent">by Spend</span></div><div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Supplier</th><th>Group</th><th>Amount</th></tr></thead><tbody id="supplierBody"></tbody></table></div></div>
+  </div>
+</div>
+
+<!-- BRANCHES -->
+<div class="section" id="sec-branches">
+  <div class="two-col" id="branchCards"></div>
+</div>
+
+<!-- FOOD COST -->
+<div class="section" id="sec-foodcost">
+  <div class="card"><div class="card-title">Combined Food Cost %</div><div id="foodCostCombined"></div></div>
+  <div class="two-col" id="foodCostBranches"></div>
+</div>
+
+<!-- LABOUR -->
+<div class="section" id="sec-labour">
+  <!-- KPI row -->
+  <div class="kpi-grid">
+    <div class="kpi" style="--glow-col:#ef4444"><div class="kpi-glow"></div><div class="kpi-icon">🏪</div><div class="kpi-lbl">CBD Labour</div><div class="kpi-val" id="lkpiCBD">—</div><div class="kpi-sub" id="lkpiCBDsub"></div><div class="kpi-badge" id="lkpiCBDbadge"></div></div>
+    <div class="kpi" style="--glow-col:#60a5fa"><div class="kpi-glow"></div><div class="kpi-icon">🏪</div><div class="kpi-lbl">Rototuna Labour</div><div class="kpi-val" id="lkpiROT">—</div><div class="kpi-sub" id="lkpiROTsub"></div><div class="kpi-badge" id="lkpiROTbadge"></div></div>
+    <div class="kpi" style="--glow-col:#a855f7"><div class="kpi-glow"></div><div class="kpi-icon">⏱️</div><div class="kpi-lbl">Total Hours</div><div class="kpi-val" id="lkpiHours">—</div><div class="kpi-sub">This period</div></div>
+    <div class="kpi" style="--glow-col:#10b981"><div class="kpi-glow"></div><div class="kpi-icon">👥</div><div class="kpi-lbl">Active Staff</div><div class="kpi-val" id="lkpiStaff">—</div><div class="kpi-sub">Across both stores</div></div>
+  </div>
+
+  <!-- Sub-tabs -->
+  <div class="sub-tabs">
+    <div class="sub-tab active" id="stab-profiles" onclick="setLabourTab('profiles')">👤 Staff Profiles</div>
+    <div class="sub-tab" id="stab-cbd" onclick="setLabourTab('cbd')">🏪 CBD Roster</div>
+    <div class="sub-tab" id="stab-rot" onclick="setLabourTab('rot')">🏪 Rototuna Roster</div>
+  </div>
+
+  <!-- Staff Profiles -->
+  <div id="labour-profiles">
+    <div class="card">
+      <div class="card-title">Staff Profiles <button class="add-btn" style="font-size:11px" onclick="openStaffModal(null)">+ Add Staff</button></div>
+      <div class="staff-grid" id="staffGrid"></div>
+    </div>
+    <div class="two-col">
+      <div class="card"><div class="card-title">FOH vs BOH — CBD <span class="accent">Donut</span></div><div class="chart-wrap"><canvas id="fohbohCBD"></canvas></div></div>
+      <div class="card"><div class="card-title">FOH vs BOH — Rototuna <span class="accent">Donut</span></div><div class="chart-wrap"><canvas id="fohbohROT"></canvas></div></div>
+    </div>
+  </div>
+
+  <!-- CBD Roster -->
+  <div id="labour-cbd" style="display:none">
+    <div class="card">
+      <div class="card-title">CBD Roster — Mon to Sat (Closed Sunday) <span class="accent">Click cell to edit shift</span></div>
+      <div class="roster-wrap"><table class="roster-tbl" id="rosterCBD"></table></div>
+      <div class="roster-footer" id="rfCBD"></div>
+    </div>
+  </div>
+
+  <!-- Rototuna Roster -->
+  <div id="labour-rot" style="display:none">
+    <div class="card">
+      <div class="card-title">Rototuna Roster — 7 Days <span class="accent">Click cell to edit shift</span></div>
+      <div class="roster-wrap"><table class="roster-tbl" id="rosterROT"></table></div>
+      <div class="roster-footer" id="rfROT"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CASH FLOW -->
+<div class="section" id="sec-cashflow">
+  <div class="two-col" id="cashflowCards"></div>
+  <div class="card">
+    <div class="card-title">Bank Statement Upload</div>
+    <div class="upload-zone" onclick="document.getElementById('bankFile').click()">
+      <div style="font-size:32px">📄</div>
+      <p>Click to upload CSV bank statement</p>
+    </div>
+    <input type="file" id="bankFile" accept=".csv" style="display:none" onchange="handleBankUpload(this)">
+    <div id="bankPreview"></div>
+  </div>
+</div>
+
+<!-- AI ANALYSIS -->
+<div class="section" id="sec-ai">
+  <div class="three-col">
+    <div class="card">
+      <div class="card-title">🤖 CBD Analysis</div>
+      <div class="ai-btns">
+        <button class="ai-btn" onclick="runAI('CBD','summary')">Summary</button>
+        <button class="ai-btn" onclick="runAI('CBD','food')">Food Cost</button>
+        <button class="ai-btn" onclick="runAI('CBD','labour')">Labour</button>
+        <button class="ai-btn" onclick="runAI('CBD','cashflow')">Cash Flow</button>
+      </div>
+      <div class="ai-output" id="aiCBD">Select an analysis type to get AI insights for CBD.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">🤖 Rototuna Analysis</div>
+      <div class="ai-btns">
+        <button class="ai-btn" onclick="runAI('Rototuna','summary')">Summary</button>
+        <button class="ai-btn" onclick="runAI('Rototuna','food')">Food Cost</button>
+        <button class="ai-btn" onclick="runAI('Rototuna','labour')">Labour</button>
+        <button class="ai-btn" onclick="runAI('Rototuna','cashflow')">Cash Flow</button>
+      </div>
+      <div class="ai-output" id="aiROT">Select an analysis type to get AI insights for Rototuna.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">🤖 Combined Analysis</div>
+      <div class="ai-btns">
+        <button class="ai-btn" onclick="runAI('Both','summary')">Summary</button>
+        <button class="ai-btn" onclick="runAI('Both','food')">Food Cost</button>
+        <button class="ai-btn" onclick="runAI('Both','labour')">Labour</button>
+        <button class="ai-btn" onclick="runAI('Both','cashflow')">Cash Flow</button>
+      </div>
+      <div class="ai-output" id="aiBoth">Select an analysis type to get combined insights.</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end main -->
+
+<!-- STAFF MODAL -->
+<div class="modal-overlay" id="staffModal">
+  <div class="modal">
+    <h3 id="modalTitle">Add Staff Member</h3>
+    <div class="form-grid">
+      <div class="form-group full"><label>Full Name *</label><input id="fName" placeholder="e.g. Jenny"></div>
+      <div class="form-group"><label>Phone</label><input id="fPhone" placeholder="+64 21 ..."></div>
+      <div class="form-group"><label>Email</label><input id="fEmail" type="email" placeholder="staff@email.com"></div>
+      <div class="form-group"><label>Position</label>
+        <select id="fPosition"><option value="FOH">FOH — Front of House</option><option value="BOH">BOH — Back of House</option></select>
+      </div>
+      <div class="form-group"><label>Branch</label>
+        <select id="fBranch"><option value="CBD">CBD</option><option value="Rototuna">Rototuna</option><option value="Both">Both</option></select>
+      </div>
+      <div class="form-group"><label>Hourly Rate ($/hr)</label><input id="fWage" type="number" placeholder="0" min="0" step="0.5"></div>
+      <div class="form-group"><label>Status</label>
+        <select id="fActive"><option value="true">Active</option><option value="false">Inactive</option></select>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--t3);margin-top:14px;line-height:1.6">
+      💡 After saving, go to the Roster tab to set their shift times (e.g. "10.30-17.00" or "16.30-closed").
+    </div>
+    <div class="modal-btns">
+      <button class="btn-danger" id="btnDelete" style="display:none" onclick="deleteStaff()">Delete</button>
+      <button class="btn-secondary" onclick="closeStaffModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveStaff()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- BANK BRANCH MODAL -->
+<div class="modal-overlay" id="bankModal">
+  <div class="modal" style="width:360px">
+    <h3>Which store is this statement for?</h3>
+    <div style="display:flex;flex-direction:column;gap:10px;margin:20px 0">
+      <button class="btn-secondary" style="text-align:left;padding:14px 16px;font-size:13px" onclick="processBankWithBranch('CBD')">🏪 CBD Branch</button>
+      <button class="btn-secondary" style="text-align:left;padding:14px 16px;font-size:13px" onclick="processBankWithBranch('Rototuna')">🏪 Rototuna Branch</button>
+      <button class="btn-secondary" style="text-align:left;padding:14px 16px;font-size:13px" onclick="processBankWithBranch('Both')">🔀 Combined / Both</button>
+    </div>
+    <div class="modal-btns"><button class="btn-secondary" onclick="document.getElementById('bankModal').classList.remove('open')">Cancel</button></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════ CONFIG ══════════════════
+const SB_URL   = 'https://sqzxdougtzbfuzlusxar.supabase.co';
+const SB_KEY   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxenhkb3VndHpiZnV6bHVzeGFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyNzc5MDgsImV4cCI6MjA5NTg1MzkwOH0.xWJ2u7YobLZSPOlEoDUTfffqN2wkFbS3NgkoyF5aWdY';
+const AI_PROXY = 'https://saigon-ai.saigonnoon.workers.dev';
+
+const FIXED    = { CBD:{wk:415,sun:0}, Rototuna:{wk:513,sun:513} };
+const CLOSE_TIME = 20.5; // 8:30pm closing time (both stores)
+const CBD_DAYS   = ['mon','tue','wed','thu','fri','sat'];           // CBD Mon-Sat
+const ROT_DAYS   = ['mon','tue','wed','thu','fri','sat','sun'];     // Rototuna 7 days
+const DAY_LABELS = { mon:'Mon',tue:'Tue',wed:'Wed',thu:'Thu',fri:'Fri',sat:'Sat',sun:'Sun' };
+const DAY_FULL   = { mon:'Monday',tue:'Tuesday',wed:'Wednesday',thu:'Thursday',fri:'Friday',sat:'Saturday',sun:'Sunday' };
+
+const SB_HDR = { 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY, 'Content-Type':'application/json', 'Prefer':'return=representation' };
+
+// ══════════════════ STATE ══════════════════
+let period = 'weekly';
+let cachedSales=[], cachedInvoices=[], allStaff=[], allRoster=[];
+let salesChartInst=null, costChartInst=null, fohbohCBDInst=null, fohbohROTInst=null;
+let editingStaffId=null, bankRows=null;
+let labourSubTab='profiles';
+
+// ══════════════════ CLOCK ══════════════════
+function tick() {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('en-NZ',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+tick(); setInterval(tick, 1000);
+
+// ══════════════════ NAV ══════════════════
+function showSection(id, el) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('sec-'+id).classList.add('active');
+  el.classList.add('active');
+}
+function setPeriod(p, btn) {
+  period = p;
+  document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('dateInput').type = p==='monthly' ? 'month' : 'date';
+  loadAll();
+}
+function setLabourTab(tab) {
+  labourSubTab = tab;
+  ['profiles','cbd','rot'].forEach(t => {
+    document.getElementById('stab-'+t).classList.toggle('active', t===tab);
+    document.getElementById('labour-'+t).style.display = t===tab ? 'block' : 'none';
+  });
+}
+
+// ══════════════════ DATE RANGE ══════════════════
+function getDateRange() {
+  const val = document.getElementById('dateInput').value;
+  if (period === 'weekly') {
+    const base = val ? new Date(val) : (() => {
+      const d=new Date(); d.setDate(d.getDate()-((d.getDay()+6)%7)); return d;
+    })();
+    const end = new Date(base); end.setDate(end.getDate()+6);
+    return { start:base.toISOString().split('T')[0], end:end.toISOString().split('T')[0] };
+  }
+  const ym = val ? val.slice(0,7) : new Date().toISOString().slice(0,7);
+  const [y,m] = ym.split('-').map(Number);
+  return { start:y+'-'+String(m).padStart(2,'0')+'-01', end:y+'-'+String(m).padStart(2,'0')+'-'+new Date(y,m,0).getDate() };
+}
+
+// ══════════════════ SUPABASE ══════════════════
+async function sbGet(table, params) {
+  const r = await fetch(SB_URL+'/rest/v1/'+table+'?'+(params||''), { headers:SB_HDR });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+async function sbPost(table, body) {
+  const r = await fetch(SB_URL+'/rest/v1/'+table, { method:'POST', headers:SB_HDR, body:JSON.stringify(body) });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+async function sbPatch(table, id, body) {
+  const r = await fetch(SB_URL+'/rest/v1/'+table+'?id=eq.'+id, { method:'PATCH', headers:SB_HDR, body:JSON.stringify(body) });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+async function sbDelete(table, id) {
+  const r = await fetch(SB_URL+'/rest/v1/'+table+'?id=eq.'+id, { method:'DELETE', headers:SB_HDR });
+  if (!r.ok) throw new Error(await r.text());
+}
+
+// ══════════════════ HELPERS ══════════════════
+const $ = id => document.getElementById(id);
+const nzd = v => '$'+Math.round(v).toLocaleString('en-NZ');
+const pct  = (a,b) => b ? (a/b*100).toFixed(1)+'%' : '—';
+function sumField(arr, field) { return arr.reduce((a,r)=>a+(Number(r[field])||0),0); }
+function byBranch(arr, b) { return arr.filter(r=>r.branch===b); }
+
+// Parse "10.30" → decimal hours (10.5)
+function parseTime(str) {
+  if (!str || str.trim()==='') return null;
+  const s = str.trim().toLowerCase();
+  if (s==='closed') return CLOSE_TIME;
+  const parts = s.replace(':','.').split('.');
+  const h = parseInt(parts[0])||0;
+  const m = parseInt((parts[1]||'0').padEnd(2,'0'))||0;
+  return h + m/60;
+}
+
+// Parse shift string "10.30-17.00" → hours worked
+function shiftHours(shiftStr) {
+  if (!shiftStr || shiftStr.trim()==='') return 0;
+  const parts = shiftStr.split('-');
+  if (parts.length < 2) return 0;
+  const start = parseTime(parts[0]);
+  const end   = parseTime(parts[1]);
+  if (start===null || end===null) return 0;
+  return Math.max(0, end - start);
+}
+
+// Calculate total labour cost for a branch over date range
+function calcLabour(branch, start, end) {
+  let totalCost = 0;
+  let totalHours = 0;
+  const staffForBranch = allStaff.filter(s=>s.active && (s.branch===branch || s.branch==='Both'));
+  const days = branch==='CBD' ? CBD_DAYS : ROT_DAYS;
+
+  for (let d=new Date(start); d<=new Date(end); d.setDate(d.getDate()+1)) {
+    // Skip Sunday for CBD
+    if (branch==='CBD' && d.getDay()===0) continue;
+    const dow = (d.getDay()+6)%7; // 0=Mon
+    const dayKey = ['mon','tue','wed','thu','fri','sat','sun'][dow];
+    if (!days.includes(dayKey)) continue;
+
+    staffForBranch.forEach(staff => {
+      const rosterRows = allRoster.filter(r=>r.staff_id===staff.id && r.branch===branch);
+      rosterRows.forEach(row => {
+        const hrs = shiftHours(row[dayKey]||'');
+        totalHours += hrs;
+        totalCost  += hrs * (Number(staff.hourly_rate)||0);
+      });
+    });
+  }
+  return { cost:totalCost, hours:totalHours };
+}
+
+function calcFixed(b, s, e) {
+  let t=0;
+  for (let d=new Date(s); d<=new Date(e); d.setDate(d.getDate()+1)) {
+    if (b==='CBD' && d.getDay()===0) continue;
+    t += FIXED[b].wk;
+  }
+  return t;
+}
+
+function setBadge(elId, pctVal, target) {
+  const el=$(elId); if(!el) return;
+  el.textContent = pctVal.toFixed(1)+'%';
+  el.className = 'kpi-badge '+(pctVal<=target?'badge-green':pctVal<=target*1.1?'badge-warn':'badge-red');
+}
+
+// ══════════════════ LOAD ALL ══════════════════
+async function loadAll() {
+  const { start, end } = getDateRange();
+  try {
+    [cachedSales, cachedInvoices, allStaff, allRoster] = await Promise.all([
+      sbGet('sales', 'branch=neq.null&date=gte.'+start+'&date=lte.'+end+'&order=date'),
+      sbGet('invoices', 'branch=neq.null&date=gte.'+start+'&date=lte.'+end+'&order=date'),
+      sbGet('staff', 'order=branch,position,name'),
+      sbGet('roster', 'order=branch,shift_num'),
+    ]);
+    $('liveBadge').style.background = 'rgba(16,185,129,.1)';
+    $('liveText').textContent = 'Live';
+  } catch(e) {
+    $('liveText').textContent = 'Offline';
+    console.error(e);
+    allRoster = allRoster||[];
+    allStaff  = allStaff||[];
+  }
+  renderOverview();
+  renderBranches();
+  renderFoodCost();
+  renderLabour();
+  renderCashFlow();
+}
+
+// ══════════════════ OVERVIEW ══════════════════
+function renderOverview() {
+  const { start, end } = getDateRange();
+  const gross = sumField(cachedSales,'gross_total');
+  const net   = sumField(cachedSales,'net_total');
+  const comm  = sumField(cachedSales,'total_comm');
+  const food  = sumField(cachedInvoices,'amount');
+  const labCBD = calcLabour('CBD',start,end).cost;
+  const labROT = calcLabour('Rototuna',start,end).cost;
+  const labour = labCBD + labROT;
+  const fixed  = calcFixed('CBD',start,end) + calcFixed('Rototuna',start,end);
+  const profit = net - food - labour - fixed;
+  const foodP  = net ? food/net*100 : 0;
+  const labP   = net ? labour/net*100 : 0;
+
+  $('kpiNet').textContent = nzd(net);
+  $('kpiNetSub').textContent = 'Gross '+nzd(gross);
+  $('kpiGross').textContent = nzd(gross);
+  $('kpiFood').textContent = nzd(food);
+  $('kpiFoodSub').textContent = pct(food,net)+' of net sales';
+  setBadge('kpiFoodBadge', foodP, 30);
+  $('kpiComm').textContent = nzd(comm);
+  $('kpiCommSub').textContent = pct(comm,gross)+' of gross';
+  $('kpiLabour').textContent = nzd(labour);
+  $('kpiLabourSub').textContent = pct(labour,net)+' of net';
+  setBadge('kpiLabourBadge', labP, 35);
+  $('kpiProfit').textContent = nzd(profit);
+  $('kpiProfitSub').textContent = pct(profit,net)+' margin';
+  const pb=$('kpiProfitBadge'); pb.textContent=(net?profit/net*100:0).toFixed(1)+'%';
+  pb.className='kpi-badge '+(profit>=0?'badge-green':'badge-red');
+
+  renderSalesChart();
+  renderCostChart(food, labour, comm, fixed);
+  renderChannels();
+  renderSuppliers();
+}
+
+function renderSalesChart() {
+  const { start, end } = getDateRange();
+  const labels=[], cbdD=[], rotD=[];
+  for(let d=new Date(start);d<=new Date(end);d.setDate(d.getDate()+1)){
+    const ds=d.toISOString().split('T')[0];
+    labels.push(ds.slice(5));
+    cbdD.push(sumField(cachedSales.filter(r=>r.date===ds&&r.branch==='CBD'),'net_total'));
+    rotD.push(sumField(cachedSales.filter(r=>r.date===ds&&r.branch==='Rototuna'),'net_total'));
+  }
+  if(salesChartInst) salesChartInst.destroy();
+  salesChartInst = new Chart($('salesChart'),{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'CBD',data:cbdD,backgroundColor:'rgba(239,68,68,.7)',borderColor:'#ef4444',borderWidth:1,borderRadius:4},
+      {label:'Rototuna',data:rotD,backgroundColor:'rgba(96,165,250,.7)',borderColor:'#60a5fa',borderWidth:1,borderRadius:4}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#94a3b8',font:{size:11}}}},
+      scales:{x:{ticks:{color:'#475569',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}},
+              y:{ticks:{color:'#475569',font:{size:10},callback:v=>'$'+v},grid:{color:'rgba(255,255,255,.04)'}}}}
+  });
+}
+
+function renderCostChart(food,labour,comm,fixed) {
+  if(costChartInst) costChartInst.destroy();
+  costChartInst = new Chart($('costChart'),{
+    type:'doughnut',
+    data:{labels:['Food','Labour','Commission','Fixed'],datasets:[{
+      data:[food,labour,comm,fixed],
+      backgroundColor:['rgba(168,85,247,.8)','rgba(239,68,68,.8)','rgba(245,158,11,.8)','rgba(59,130,246,.8)'],
+      borderColor:['#a855f7','#ef4444','#f59e0b','#3b82f6'],borderWidth:1,hoverOffset:6
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'65%',
+      plugins:{legend:{position:'right',labels:{color:'#94a3b8',font:{size:11},padding:14}}}}
+  });
+}
+
+function renderChannels() {
+  const s=cachedSales;
+  const ch=[
+    {name:'In-House',val:sumField(s,'inhouse'),color:'#10b981'},
+    {name:'Uber Eats',val:sumField(s,'uber'),color:'#ef4444'},
+    {name:'DoorDash',val:sumField(s,'doordash'),color:'#f59e0b'},
+    {name:'BooknOrders',val:sumField(s,'booknorders'),color:'#a855f7'},
+  ];
+  const total = ch.reduce((a,c)=>a+c.val,0)||1;
+  $('channelBreakdown').innerHTML = ch.map(c=>`
+    <div class="ch-pill">
+      <div class="ch-dot" style="background:${c.color}"></div>
+      <span class="ch-name">${c.name}</span>
+      <div class="ch-bar-wrap"><div class="ch-bar" style="width:${(c.val/total*100).toFixed(0)}%;background:${c.color}"></div></div>
+      <span class="ch-amt">${nzd(c.val)}</span>
+    </div>`).join('');
+}
+
+function renderSuppliers() {
+  const map={};
+  cachedInvoices.forEach(r=>{
+    const k=r.supplier||'Unknown';
+    if(!map[k]) map[k]={group:r.supplier_group||'—',total:0};
+    map[k].total += Number(r.amount)||0;
+  });
+  const rows = Object.entries(map).sort((a,b)=>b[1].total-a[1].total).slice(0,8);
+  $('supplierBody').innerHTML = rows.map(([n,d])=>
+    '<tr><td>'+n+'</td><td><span class="pill" style="background:rgba(100,116,139,.15);color:#94a3b8">'+d.group+'</span></td><td class="stat-val cyan">'+nzd(d.total)+'</td></tr>'
+  ).join('') || '<tr><td colspan="3" style="color:var(--t3);text-align:center;padding:20px">No invoice data</td></tr>';
+}
+
+// ══════════════════ BRANCHES ══════════════════
+function renderBranches() {
+  const { start, end } = getDateRange();
+  $('branchCards').innerHTML = ['CBD','Rototuna'].map(b=>{
+    const s=byBranch(cachedSales,b), inv=byBranch(cachedInvoices,b);
+    const gross=sumField(s,'gross_total'), net=sumField(s,'net_total'), comm=sumField(s,'total_comm');
+    const food=sumField(inv,'amount');
+    const lab=calcLabour(b,start,end).cost;
+    const fixed=calcFixed(b,start,end);
+    const profit=net-food-lab-fixed;
+    const col=b==='CBD'?'#ef4444':'#60a5fa';
+    const foodP=net?food/net*100:0, labP=net?lab/net*100:0, fixP=net?fixed/net*100:0;
+    return '<div class="card">'+
+      '<div class="branch-header" style="color:'+col+'">🏪 '+b+'</div>'+
+      '<div class="stat-row"><span class="stat-lbl">Gross Sales</span><span class="stat-val">'+nzd(gross)+'</span></div>'+
+      '<div class="stat-row"><span class="stat-lbl">Commission</span><span class="stat-val neg">'+nzd(comm)+'</span></div>'+
+      '<div class="stat-row"><span class="stat-lbl">Net Sales</span><span class="stat-val cyan">'+nzd(net)+'</span></div>'+
+      '<div class="stat-row"><span class="stat-lbl">Food Cost</span><span class="stat-val '+(foodP>30?'neg':foodP>27?'warn':'pos')+'">'+nzd(food)+' ('+foodP.toFixed(1)+'%)</span></div>'+
+      '<div class="stat-row"><span class="stat-lbl">Labour</span><span class="stat-val '+(labP>35?'neg':labP>32?'warn':'pos')+'">'+nzd(lab)+' ('+labP.toFixed(1)+'%)</span></div>'+
+      '<div class="stat-row"><span class="stat-lbl">Fixed Costs</span><span class="stat-val">'+nzd(fixed)+'</span></div>'+
+      '<div class="glow-sep"></div>'+
+      '<div class="stat-row"><span class="stat-lbl">Net Profit</span><span class="stat-val '+(profit>=0?'pos':'neg')+'">'+nzd(profit)+'</span></div>'+
+      '<div style="margin-top:14px">'+
+      '<div class="cbar-row"><span class="cbar-lbl">Food</span><div class="cbar-track"><div class="cbar-fill '+(foodP>30?'r':foodP>27?'a':'g')+'" style="width:'+Math.min(foodP*2,100)+'%"></div></div><span class="cbar-pct">'+foodP.toFixed(0)+'%</span></div>'+
+      '<div class="cbar-row"><span class="cbar-lbl">Labour</span><div class="cbar-track"><div class="cbar-fill '+(labP>35?'r':labP>32?'a':'g')+'" style="width:'+Math.min(labP*2,100)+'%"></div></div><span class="cbar-pct">'+labP.toFixed(0)+'%</span></div>'+
+      '<div class="cbar-row"><span class="cbar-lbl">Fixed</span><div class="cbar-track"><div class="cbar-fill g" style="width:'+Math.min(fixP*2,100)+'%"></div></div><span class="cbar-pct">'+fixP.toFixed(0)+'%</span></div>'+
+      '</div></div>';
+  }).join('');
+}
+
+// ══════════════════ FOOD COST ══════════════════
+function renderFoodCost() {
+  const net=sumField(cachedSales,'net_total'), food=sumField(cachedInvoices,'amount');
+  const p=net?food/net*100:0;
+  $('foodCostCombined').innerHTML =
+    '<div class="stat-row"><span class="stat-lbl">Total Invoice Spend</span><span class="stat-val cyan">'+nzd(food)+'</span></div>'+
+    '<div class="stat-row"><span class="stat-lbl">Net Sales</span><span class="stat-val">'+nzd(net)+'</span></div>'+
+    '<div class="stat-row"><span class="stat-lbl">Food Cost %</span><span class="stat-val '+(p>30?'neg':p>27?'warn':'pos')+'">'+p.toFixed(1)+'% (target &lt;30%)</span></div>'+
+    '<div class="cbar-row" style="margin-top:14px"><span class="cbar-lbl">Combined</span><div class="cbar-track" style="height:10px"><div class="cbar-fill '+(p>30?'r':p>27?'a':'g')+'" style="width:'+Math.min(p*2,100)+'%;height:10px;border-radius:4px"></div></div><span class="cbar-pct">'+p.toFixed(0)+'%</span></div>';
+
+  $('foodCostBranches').innerHTML = ['CBD','Rototuna'].map(b=>{
+    const bnet=sumField(byBranch(cachedSales,b),'net_total');
+    const bfood=sumField(byBranch(cachedInvoices,b),'amount');
+    const bp=bnet?bfood/bnet*100:0;
+    const col=b==='CBD'?'#ef4444':'#60a5fa';
+    const supMap={};
+    byBranch(cachedInvoices,b).forEach(r=>{
+      const k=r.supplier||'Unknown'; supMap[k]=(supMap[k]||0)+(Number(r.amount)||0);
+    });
+    const sups=Object.entries(supMap).sort((a,c)=>c[1]-a[1]).slice(0,5);
+    return '<div class="card">'+
+      '<div class="branch-header" style="color:'+col+'">🏪 '+b+'</div>'+
+      '<div class="stat-row"><span class="stat-lbl">Food Cost</span><span class="stat-val '+(bp>30?'neg':bp>27?'warn':'pos')+'">'+nzd(bfood)+'</span></div>'+
+      '<div class="stat-row"><span class="stat-lbl">% of Net Sales</span><span class="stat-val '+(bp>30?'neg':'pos')+'">'+bp.toFixed(1)+'%</span></div>'+
+      '<div class="glow-sep"></div>'+
+      '<div style="font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px">Top Suppliers</div>'+
+      sups.map(function(sv){ return '<div class="cbar-row"><span class="cbar-lbl" style="width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+sv[0]+'">'+sv[0]+'</span><div class="cbar-track"><div class="cbar-fill g" style="width:'+(bfood?sv[1]/bfood*100:0)+'%"></div></div><span class="cbar-pct">'+nzd(sv[1])+'</span></div>'; }).join('')+
+      '</div>';
+  }).join('');
+}
+
+// ══════════════════ LABOUR ══════════════════
+function renderLabour() {
+  const { start, end } = getDateRange();
+  const cbd=calcLabour('CBD',start,end), rot=calcLabour('Rototuna',start,end);
+  const cbdNet=sumField(byBranch(cachedSales,'CBD'),'net_total');
+  const rotNet=sumField(byBranch(cachedSales,'Rototuna'),'net_total');
+
+  $('lkpiCBD').textContent = nzd(cbd.cost);
+  $('lkpiCBDsub').textContent = cbdNet ? pct(cbd.cost,cbdNet)+' of sales' : 'No sales data';
+  setBadge('lkpiCBDbadge', cbdNet?cbd.cost/cbdNet*100:0, 35);
+  $('lkpiROT').textContent = nzd(rot.cost);
+  $('lkpiROTsub').textContent = rotNet ? pct(rot.cost,rotNet)+' of sales' : 'No sales data';
+  setBadge('lkpiROTbadge', rotNet?rot.cost/rotNet*100:0, 35);
+  $('lkpiHours').textContent = (cbd.hours+rot.hours).toFixed(1)+'h';
+  $('lkpiStaff').textContent = allStaff.filter(s=>s.active).length;
+
+  renderStaffProfiles();
+  renderRosterTable('CBD');
+  renderRosterTable('Rototuna');
+  renderFOHBOHCharts();
+}
+
+// ─── Staff Profiles ───
+function avatarStyle(pos) {
+  return pos==='FOH'
+    ? 'background:rgba(168,85,247,.2);color:#a855f7'
+    : 'background:rgba(245,158,11,.2);color:#f59e0b';
+}
+function branchPill(b) {
+  if(b==='CBD') return '<span class="pill pill-cbd">CBD</span>';
+  if(b==='Rototuna') return '<span class="pill pill-rot">Rototuna</span>';
+  return '<span class="pill pill-both">Both</span>';
+}
+
+function renderStaffProfiles() {
+  const grid = $('staffGrid');
+  if (!allStaff.length) {
+    grid.innerHTML = '<div class="empty"><div style="font-size:32px">👥</div><p>No staff yet. Click "+ Add Staff" to get started.</p></div>';
+    return;
+  }
+  grid.innerHTML = allStaff.map(s=>{
+    const initials = (s.name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    return '<div class="staff-card" onclick="openStaffModal('+s.id+')">' +
+      '<div class="staff-card-top">' +
+      '<div class="staff-avatar" style="'+avatarStyle(s.position)+'">'+initials+'</div>' +
+      '<div><div class="staff-name">'+s.name+'</div>' +
+      '<div class="staff-pos"><span class="pill '+(s.position==='FOH'?'pill-foh':'pill-boh')+'">'+s.position+'</span> &nbsp;'+branchPill(s.branch)+'</div></div></div>' +
+      '<div class="staff-detail">📞 <span>'+(s.phone||'—')+'</span></div>' +
+      '<div class="staff-detail">✉️ <span>'+(s.email||'—')+'</span></div>' +
+      '<div class="glow-sep" style="margin:10px 0"></div>' +
+      '<div class="staff-wage-lbl">Hourly Rate</div>' +
+      '<div class="staff-wage">$'+(Number(s.hourly_rate)||0).toFixed(2)+'/hr</div>' +
+      '<div style="margin-top:8px"><span class="pill '+(s.active?'pill-on':'pill-off')+'">'+(s.active?'Active':'Inactive')+'</span></div>' +
+      '</div>';
+  }).join('');
+}
+
+// ─── Roster Table ───
+function renderRosterTable(branch) {
+  const days = branch==='CBD' ? CBD_DAYS : ROT_DAYS;
+  const staffForBranch = allStaff.filter(s=>s.active && (s.branch===branch||s.branch==='Both'));
+  const tblId = branch==='CBD' ? 'rosterCBD' : 'rosterROT';
+  const rfId  = branch==='CBD' ? 'rfCBD' : 'rfROT';
+  const tbl = $(tblId);
+
+  // Build header
+  let html = '<thead><tr><th class="name-col">Name</th>';
+  days.forEach(d => { html += '<th>'+DAY_LABELS[d]+'</th>'; });
+  html += '<th>Week Hrs</th><th>Est. Cost</th></tr></thead><tbody>';
+
+  // Group by position
+  ['BOH','FOH'].forEach(pos => {
+    const posStaff = staffForBranch.filter(s=>s.position===pos);
+    if (!posStaff.length) return;
+
+    html += '<tr class="section-hdr section-hdr-'+pos.toLowerCase()+'"><td colspan="'+(days.length+3)+'">'+pos+' — '+(pos==='BOH'?'Back of House':'Front of House')+'</td></tr>';
+
+    posStaff.forEach(staff => {
+      // Get this staff's roster rows for this branch
+      let rosterRows = allRoster.filter(r=>r.staff_id===staff.id && r.branch===branch);
+      // Always show at least 1 row, max 2 (for split shifts)
+      if (rosterRows.length===0) rosterRows = [{ id:null, staff_id:staff.id, branch, shift_num:1, mon:'',tue:'',wed:'',thu:'',fri:'',sat:'',sun:'' }];
+
+      rosterRows.forEach((row, ri) => {
+        const weekHrs = days.reduce((a,d)=>a+shiftHours(row[d]||''),0);
+        const estCost = weekHrs * (Number(staff.hourly_rate)||0);
+
+        html += '<tr>';
+        html += '<td class="name-col">';
+        if (ri===0) {
+          html += '<span style="font-weight:700;color:var(--t1)">'+staff.name+'</span>';
+          if (!rosterRows[1]) {
+            html += ' <span style="font-size:9px;color:var(--cyan);cursor:pointer;border:1px solid var(--border2);border-radius:4px;padding:1px 5px" onclick="addRosterRow('+staff.id+',\''+branch+'\')" title="Add split shift">+shift</span>';
+          }
+        } else {
+          html += '<span style="font-size:10px;color:var(--t3);padding-left:8px">↳ split</span>';
+        }
+        html += '</td>';
+
+        days.forEach(day => {
+          const val = row[day]||'';
+          const hrs = shiftHours(val);
+          const cls = val===''?'no-shift':(val.toLowerCase().includes('closed')?'closed':'has-shift');
+          html += '<td>' +
+            '<input class="shift-input '+cls+'" value="'+val+'" placeholder="—" ' +
+            'data-rostid="'+(row.id||'')+'" data-staffid="'+staff.id+'" data-branch="'+branch+'" data-day="'+day+'" data-shiftnum="'+(row.shift_num||1)+'" ' +
+            'onblur="saveShift(this)" oninput="updateShiftClass(this)">' +
+            (hrs>0?'<div class="hours-cell">'+hrs.toFixed(1)+'h</div>':'') +
+            '</td>';
+        });
+        html += '<td style="font-size:11px;color:var(--t3)">'+weekHrs.toFixed(1)+'h</td>';
+        html += '<td style="font-size:11px;color:var(--t3)">'+nzd(estCost)+'</td>';
+        html += '</tr>';
+      });
+
+      // Combined subtotal row when there are split shifts
+      if (rosterRows.length > 1) {
+        const totalHrs  = days.reduce((a,d)=>a+rosterRows.reduce((b,row)=>b+shiftHours(row[d]||''),0),0);
+        const totalCost = totalHrs * (Number(staff.hourly_rate)||0);
+        html += '<tr style="background:rgba(0,212,255,.04)">';
+        html += '<td class="name-col" style="font-size:10px;color:var(--cyan);padding-left:16px">Total</td>';
+        days.forEach(day => {
+          const dayHrs = rosterRows.reduce((a,row)=>a+shiftHours(row[day]||''),0);
+          html += '<td style="font-size:11px;color:var(--cyan);font-weight:700">'+(dayHrs>0?dayHrs.toFixed(1)+'h':'')+'</td>';
+        });
+        html += '<td style="font-weight:800;color:var(--cyan);font-size:12px">'+totalHrs.toFixed(1)+'h</td>';
+        html += '<td style="font-weight:800;color:var(--green);font-size:12px">'+nzd(totalCost)+'</td>';
+        html += '</tr>';
+      }
+    });
+  });
+
+  // Day totals row
+  html += '<tr class="total-row"><td class="name-col">Day Total Hours</td>';
+  let grandHrs=0, grandCost=0;
+  days.forEach(day => {
+    let dayHrs=0, dayCost=0;
+    staffForBranch.forEach(staff => {
+      const rRows = allRoster.filter(r=>r.staff_id===staff.id && r.branch===branch);
+      const rows = rRows.length ? rRows : [];
+      rows.forEach(row => {
+        const h = shiftHours(row[day]||'');
+        dayHrs += h;
+        dayCost += h * (Number(staff.hourly_rate)||0);
+      });
+    });
+    grandHrs += dayHrs;
+    grandCost += dayCost;
+    html += '<td>'+dayHrs.toFixed(1)+'h<br><span style="color:var(--green);font-size:10px">'+nzd(dayCost)+'</span></td>';
+  });
+  html += '<td>'+grandHrs.toFixed(1)+'h</td><td>'+nzd(grandCost)+'</td></tr>';
+  html += '</tbody>';
+  tbl.innerHTML = html;
+
+  // Footer summary
+  $(rfId).innerHTML =
+    '<div class="rf-stat"><div class="rf-lbl">Total Hours</div><div class="rf-val">'+grandHrs.toFixed(1)+'h</div></div>' +
+    '<div class="rf-stat"><div class="rf-lbl">Est. Weekly Cost</div><div class="rf-val">'+nzd(grandCost)+'</div></div>' +
+    '<div class="rf-stat"><div class="rf-lbl">Staff on Roster</div><div class="rf-val">'+staffForBranch.length+'</div></div>';
+}
+
+// Update input class as user types
+function updateShiftClass(inp) {
+  const v = inp.value.trim().toLowerCase();
+  inp.className = 'shift-input '+(v===''?'no-shift':v.includes('closed')?'closed':'has-shift');
+  // Update hours cell below
+  const hrs = shiftHours(inp.value);
+  const hc = inp.nextElementSibling;
+  if (hc && hc.classList.contains('hours-cell')) {
+    hc.textContent = hrs>0 ? hrs.toFixed(1)+'h' : '';
+  } else if (hrs>0) {
+    const d=document.createElement('div'); d.className='hours-cell'; d.textContent=hrs.toFixed(1)+'h';
+    inp.after(d);
+  }
+}
+
+// Save shift on blur
+async function saveShift(inp) {
+  const val     = inp.value.trim();
+  const rostId  = inp.dataset.rostid;
+  const staffId = parseInt(inp.dataset.staffid);
+  const branch  = inp.dataset.branch;
+  const day     = inp.dataset.day;
+  const snum    = parseInt(inp.dataset.shiftnum)||1;
+
+  try {
+    if (rostId) {
+      // Update existing roster row
+      await sbPatch('roster', rostId, { [day]: val });
+      const row = allRoster.find(r=>r.id===parseInt(rostId));
+      if (row) row[day] = val;
+    } else {
+      // Create new roster row
+      const body = { staff_id:staffId, branch, shift_num:snum, mon:'',tue:'',wed:'',thu:'',fri:'',sat:'',sun:'', [day]:val };
+      const res = await sbPost('roster', body);
+      if (res && res[0]) {
+        allRoster.push(res[0]);
+        inp.dataset.rostid = res[0].id;
+      }
+    }
+  } catch(e) {
+    console.error('Save shift failed:', e);
+  }
+}
+
+async function addRosterRow(staffId, branch) {
+  try {
+    const body = { staff_id:staffId, branch, shift_num:2, mon:'',tue:'',wed:'',thu:'',fri:'',sat:'',sun:'' };
+    const res = await sbPost('roster', body);
+    if (res && res[0]) {
+      allRoster.push(res[0]);
+      renderRosterTable(branch);
+    }
+  } catch(e) { console.error(e); }
+}
+
+// FOH vs BOH charts
+function renderFOHBOHCharts() {
+  ['CBD','Rototuna'].forEach(b => {
+    const days = b==='CBD' ? CBD_DAYS : ROT_DAYS;
+    let foh=0, boh=0;
+    allStaff.filter(s=>s.active&&(s.branch===b||s.branch==='Both')).forEach(staff=>{
+      const rows=allRoster.filter(r=>r.staff_id===staff.id&&r.branch===b);
+      const hrs=rows.reduce((a,row)=>a+days.reduce((b2,d)=>b2+shiftHours(row[d]||''),0),0);
+      const cost=hrs*(Number(staff.hourly_rate)||0);
+      if(staff.position==='FOH') foh+=cost; else boh+=cost;
+    });
+    const canvasId=b==='CBD'?'fohbohCBD':'fohbohROT';
+    const inst=b==='CBD'?fohbohCBDInst:fohbohROTInst;
+    if(inst) inst.destroy();
+    const ni=new Chart($(canvasId),{
+      type:'doughnut',
+      data:{labels:['FOH','BOH'],datasets:[{data:[foh,boh],backgroundColor:['rgba(168,85,247,.75)','rgba(245,158,11,.75)'],borderColor:['#a855f7','#f59e0b'],borderWidth:1}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'62%',
+        plugins:{legend:{position:'right',labels:{color:'#94a3b8',font:{size:11}}},
+        tooltip:{callbacks:{label:function(ctx){return ' '+nzd(ctx.raw);}}}}}
+    });
+    if(b==='CBD') fohbohCBDInst=ni; else fohbohROTInst=ni;
+  });
+}
+
+// ══════════════════ STAFF MODAL ══════════════════
+function openStaffModal(id) {
+  editingStaffId = id;
+  $('modalTitle').textContent = id ? 'Edit Staff Member' : 'Add Staff Member';
+  $('btnDelete').style.display = id ? 'block' : 'none';
+  if (id) {
+    const s=allStaff.find(x=>x.id===id); if(!s) return;
+    $('fName').value=s.name||''; $('fPhone').value=s.phone||''; $('fEmail').value=s.email||'';
+    $('fPosition').value=s.position||'FOH'; $('fBranch').value=s.branch||'CBD';
+    $('fWage').value=Number(s.hourly_rate)||0; $('fActive').value=String(s.active!==false);
+  } else {
+    ['fName','fPhone','fEmail'].forEach(i=>$(i).value='');
+    $('fPosition').value='FOH'; $('fBranch').value='CBD'; $('fWage').value=0; $('fActive').value='true';
+  }
+  $('staffModal').classList.add('open');
+}
+function closeStaffModal() { $('staffModal').classList.remove('open'); }
+
+async function saveStaff() {
+  const body = {
+    name:$('fName').value.trim(), phone:$('fPhone').value.trim(), email:$('fEmail').value.trim(),
+    position:$('fPosition').value, branch:$('fBranch').value,
+    hourly_rate:Number($('fWage').value)||0, active:$('fActive').value==='true'
+  };
+  if (!body.name) { alert('Name is required'); return; }
+  try {
+    if (editingStaffId) await sbPatch('staff',editingStaffId,body);
+    else await sbPost('staff',body);
+    closeStaffModal(); await loadAll();
+  } catch(e) { alert('Save failed: '+e.message); }
+}
+
+async function deleteStaff() {
+  if (!confirm('Remove this staff member? Their roster will also be deleted.')) return;
+  try {
+    await sbDelete('staff',editingStaffId);
+    closeStaffModal(); await loadAll();
+  } catch(e) { alert('Delete failed: '+e.message); }
+}
+$('staffModal').addEventListener('click', e=>{ if(e.target===$('staffModal')) closeStaffModal(); });
+
+// ══════════════════ CASH FLOW ══════════════════
+function renderCashFlow() {
+  const { start, end } = getDateRange();
+  $('cashflowCards').innerHTML = ['CBD','Rototuna'].map(b=>{
+    const s=byBranch(cachedSales,b), inv=byBranch(cachedInvoices,b);
+    const net=sumField(s,'net_total'), food=sumField(inv,'amount');
+    const lab=calcLabour(b,start,end).cost, fixed=calcFixed(b,start,end);
+    const ocf=net-food-lab-fixed;
+    const col=b==='CBD'?'#ef4444':'#60a5fa';
+    return '<div class="card">'+
+      '<div class="branch-header" style="color:'+col+'">💸 '+b+' Cash Flow</div>'+
+      '<div class="stat-row"><span class="stat-lbl">Net Sales (inflow)</span><span class="stat-val pos">'+nzd(net)+'</span></div>'+
+      '<div class="stat-row"><span class="stat-lbl">Food Cost</span><span class="stat-val neg">−'+nzd(food)+'</span></div>'+
+      '<div class="stat-row"><span class="stat-lbl">Labour</span><span class="stat-val neg">−'+nzd(lab)+'</span></div>'+
+      '<div class="stat-row"><span class="stat-lbl">Fixed Costs</span><span class="stat-val neg">−'+nzd(fixed)+'</span></div>'+
+      '<div class="glow-sep"></div>'+
+      '<div class="stat-row"><span class="stat-lbl">Operating Cash Flow</span><span class="stat-val '+(ocf>=0?'pos':'neg')+'">'+nzd(ocf)+'</span></div>'+
+      '</div>';
+  }).join('');
+}
+
+// ══════════════════ BANK ══════════════════
+function handleBankUpload(input) {
+  const file=input.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    bankRows=e.target.result.split('\n').filter(l=>l.trim()).slice(1).map(l=>l.split(',').map(c=>c.replace(/"/g,'')));
+    $('bankModal').classList.add('open');
+    input.value='';
+  };
+  reader.readAsText(file);
+}
+function processBankWithBranch(b) {
+  $('bankModal').classList.remove('open');
+  const income=[], expenses=[];
+  (bankRows||[]).forEach(row=>{
+    const val=parseFloat(row[2])||0;
+    if(val>0) income.push(val); else expenses.push(Math.abs(val));
+  });
+  const totalIn=income.reduce((a,v)=>a+v,0), totalOut=expenses.reduce((a,v)=>a+v,0);
+  $('bankPreview').innerHTML='<div style="margin-top:16px;font-size:12px;color:var(--t2)">'+
+    '<div class="stat-row"><span class="stat-lbl">Branch</span><span class="stat-val cyan">'+b+'</span></div>'+
+    '<div class="stat-row"><span class="stat-lbl">Total Inflows</span><span class="stat-val pos">'+nzd(totalIn)+'</span></div>'+
+    '<div class="stat-row"><span class="stat-lbl">Total Outflows</span><span class="stat-val neg">'+nzd(totalOut)+'</span></div>'+
+    '<div class="stat-row"><span class="stat-lbl">Net Position</span><span class="stat-val '+(totalIn-totalOut>=0?'pos':'neg')+'">'+nzd(totalIn-totalOut)+'</span></div>'+
+    '<div class="stat-row"><span class="stat-lbl">Transactions</span><span class="stat-val">'+(bankRows||[]).length+'</span></div>'+
+    '</div>';
+}
+
+// ══════════════════ AI ══════════════════
+async function runAI(branch, type) {
+  const elId = branch==='CBD'?'aiCBD':branch==='Rototuna'?'aiROT':'aiBoth';
+  const el=$(elId);
+  el.className='ai-output loading'; el.textContent='Analysing…';
+
+  const { start, end } = getDateRange();
+  const s = branch==='Both' ? cachedSales : byBranch(cachedSales,branch);
+  const inv = branch==='Both' ? cachedInvoices : byBranch(cachedInvoices,branch);
+  const net=sumField(s,'net_total'), food=sumField(inv,'amount');
+  const labObj = branch==='Both'
+    ? { cost:calcLabour('CBD',start,end).cost+calcLabour('Rototuna',start,end).cost,
+        hours:calcLabour('CBD',start,end).hours+calcLabour('Rototuna',start,end).hours }
+    : calcLabour(branch,start,end);
+  const fixed = branch==='Both'
+    ? calcFixed('CBD',start,end)+calcFixed('Rototuna',start,end)
+    : calcFixed(branch,start,end);
+  const lab=labObj.cost, hrs=labObj.hours;
+  const profit=net-food-lab-fixed;
+
+  const supMap={};
+  inv.forEach(r=>{ const k=r.supplier||'?'; supMap[k]=(supMap[k]||0)+r.amount; });
+  const topSups=Object.entries(supMap).sort((a,b)=>b[1]-a[1]).slice(0,4).map(function(kv){ return kv[0]+' $'+kv[1].toFixed(0); }).join(', ')||'none';
+
+  const prompts = {
+    summary: 'NZ restaurant '+branch+' executive summary ('+start+' to '+end+'). Net Sales $'+net.toFixed(0)+', Food Cost $'+food.toFixed(0)+' ('+pct(food,net)+'), Labour $'+lab.toFixed(0)+' '+hrs.toFixed(0)+'hrs ('+pct(lab,net)+'), Fixed $'+fixed.toFixed(0)+', Net Profit $'+profit.toFixed(0)+'. Give a concise 3-4 sentence summary with top 2 action items.',
+    food: 'NZ restaurant food cost analysis for '+branch+' ('+start+'-'+end+'). Net Sales $'+net.toFixed(0)+', Food Cost $'+food.toFixed(0)+' ('+pct(food,net)+', target <30%). Top suppliers: '+topSups+'. Give specific food cost reduction recommendations.',
+    labour: 'NZ restaurant labour analysis for '+branch+' ('+start+'-'+end+'). Net Sales $'+net.toFixed(0)+', Labour $'+lab.toFixed(0)+' for '+hrs.toFixed(0)+' hours ('+pct(lab,net)+', target <35%). Avg rate $'+(hrs>0?(lab/hrs).toFixed(2):'0')+'/hr. Give specific recommendations to optimise labour scheduling.',
+    cashflow: 'NZ restaurant cash flow for '+branch+' ('+start+'-'+end+'). Net $'+net.toFixed(0)+', Food -$'+food.toFixed(0)+', Labour -$'+lab.toFixed(0)+', Fixed -$'+fixed.toFixed(0)+', Operating CF $'+profit.toFixed(0)+'. Give 3 specific cash flow improvement recommendations.'
+  };
+
+  try {
+    const r=await fetch(AI_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:600,messages:[{role:'user',content:prompts[type]}]})});
+    const d=await r.json();
+    el.className='ai-output'; el.textContent=d?.content?.[0]?.text||'No response.';
+  } catch(e) {
+    el.className='ai-output error'; el.textContent='AI Error: '+e.message;
+  }
+}
+
+// ══════════════════ INIT ══════════════════
+document.getElementById('dateInput').type = 'date';
+loadAll();
+setInterval(loadAll, 30000);
+</script>
+</body>
+</html>
