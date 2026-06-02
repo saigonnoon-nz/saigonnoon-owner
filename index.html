@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Saigon Noon — Command Center</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 <script>
 // ── PASSWORD GATE ──
 // Change OWNER_PASS to whatever password you want
@@ -181,25 +182,27 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 
 /* ROSTER TABLE */
 .roster-wrap { overflow-x:auto; }
-.roster-tbl { width:100%; border-collapse:collapse; font-size:12px; min-width:600px; }
-.roster-tbl th { padding:9px 8px; text-align:center; font-size:10px; font-weight:700; color:var(--cyan); text-transform:uppercase; letter-spacing:.8px; border-bottom:1px solid var(--border); white-space:nowrap; }
-.roster-tbl th.name-col { text-align:left; color:var(--t3); width:100px; }
-.roster-tbl td { padding:4px 4px; border-bottom:1px solid rgba(255,255,255,.04); text-align:center; vertical-align:middle; }
-.roster-tbl td.name-col { text-align:left; padding:4px 8px; }
+.roster-tbl { width:100%; border-collapse:collapse; font-size:12px; min-width:600px; border:1px solid var(--border); }
+.roster-tbl th { padding:9px 8px; text-align:center; font-size:10px; font-weight:700; color:var(--cyan); text-transform:uppercase; letter-spacing:.8px; border:1px solid var(--border); background:var(--s2); white-space:nowrap; }
+.roster-tbl th.name-col { text-align:left; color:var(--t3); width:110px; }
+.roster-tbl td { padding:3px 4px; border:1px solid rgba(30,45,64,.8); text-align:center; vertical-align:middle; }
+.roster-tbl td.name-col { text-align:left; padding:4px 10px; border-right:2px solid var(--border); }
 .roster-tbl tr:hover td { background:rgba(0,212,255,.02); }
-.roster-tbl .section-hdr td { background:var(--s2); padding:6px 8px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:1px; border-top:1px solid var(--border); }
+.roster-tbl .section-hdr td { background:var(--s2); padding:7px 10px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:1px; border-top:2px solid var(--border); border-bottom:1px solid var(--border); }
 .roster-tbl .section-hdr-boh td { color:var(--orange); }
 .roster-tbl .section-hdr-foh td { color:var(--purple); }
-.roster-tbl .total-row td { background:rgba(0,212,255,.04); font-weight:700; color:var(--cyan); font-size:11px; border-top:1px solid var(--border); }
+.roster-tbl .total-row td { background:rgba(0,212,255,.05); font-weight:700; color:var(--cyan); font-size:11px; border-top:2px solid rgba(0,212,255,.2); }
 .roster-tbl .total-row td.name-col { color:var(--t3); }
 
 /* SHIFT CELL */
-.shift-input { background:transparent; border:1px solid transparent; border-radius:5px; padding:4px 6px; font-size:11px; color:var(--t1); text-align:center; width:100%; min-width:90px; font-family:inherit; transition:all .15s; outline:none; }
+.shift-input { background:transparent; border:1px solid transparent; border-radius:5px; padding:5px 6px; font-size:12px; color:var(--t1); text-align:center; width:100%; min-width:94px; font-family:inherit; transition:all .15s; outline:none; }
 .shift-input:hover { border-color:var(--border); background:var(--s2); }
-.shift-input:focus { border-color:var(--cyan); background:var(--s3); }
-.shift-input.has-shift { color:var(--t1); }
+.shift-input:focus { border-color:var(--cyan); background:var(--s3); box-shadow:0 0 0 2px rgba(0,212,255,.12); }
+.shift-input.has-shift { color:var(--t1); font-weight:600; }
 .shift-input.no-shift { color:var(--t3); }
-.shift-input.closed { color:var(--orange); }
+.shift-input.closed { color:var(--orange); font-weight:600; }
+.shift-input.saving { border-color:var(--orange) !important; }
+.shift-input.saved  { border-color:var(--green) !important; }
 .hours-cell { font-size:10px; color:var(--t3); font-weight:700; margin-top:1px; }
 
 /* ROSTER FOOTER */
@@ -290,15 +293,17 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
   <div class="nav-item active" onclick="showSection('overview',this)">⚡ Overview</div>
   <div class="nav-item" onclick="showSection('branches',this)">🏪 Branches</div>
   <div class="nav-item" onclick="showSection('foodcost',this)">🥗 Food Cost</div>
-  <div class="nav-item" onclick="showSection('labour',this)">👥 Labour</div>
+  <div class="nav-item" onclick="showSection('labour',this)">📅 Roster</div>
   <div class="nav-item" onclick="showSection('cashflow',this)">💸 Cash Flow</div>
   <div class="nav-item" onclick="showSection('ai',this)">🤖 AI Analysis</div>
+  <div class="nav-item" onclick="showSection('staff',this)">👤 Staff</div>
 </div>
 
 <!-- TOOLBAR -->
 <div class="toolbar">
   <div class="period-group">
-    <button class="period-btn active" onclick="setPeriod('weekly',this)">Weekly</button>
+    <button class="period-btn active" onclick="setPeriod('daily',this)">Daily</button>
+    <button class="period-btn" onclick="setPeriod('weekly',this)">Weekly</button>
     <button class="period-btn" onclick="setPeriod('monthly',this)">Monthly</button>
   </div>
   <input type="date" class="date-input" id="dateInput">
@@ -329,60 +334,79 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 
 <!-- BRANCHES -->
 <div class="section" id="sec-branches">
-  <div class="two-col" id="branchCards"></div>
+
+  <!-- CBD -->
+  <div style="margin-bottom:32px">
+    <div style="font-size:15px;font-weight:800;color:#ef4444;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid rgba(239,68,68,.2)">🏪 CBD Branch</div>
+    <div class="kpi-grid" id="bKPI_CBD"></div>
+    <div class="two-col">
+      <div class="card"><div class="card-title">Sales by Channel <span class="accent">Donut</span></div><div class="chart-wrap"><canvas id="bChannel_CBD"></canvas></div></div>
+      <div class="card" id="bDetail_CBD"></div>
+    </div>
+  </div>
+
+  <!-- Rototuna -->
+  <div>
+    <div style="font-size:15px;font-weight:800;color:#60a5fa;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid rgba(96,165,250,.2)">🏘 Rototuna Branch</div>
+    <div class="kpi-grid" id="bKPI_Rototuna"></div>
+    <div class="two-col">
+      <div class="card"><div class="card-title">Sales by Channel <span class="accent">Donut</span></div><div class="chart-wrap"><canvas id="bChannel_Rototuna"></canvas></div></div>
+      <div class="card" id="bDetail_Rototuna"></div>
+    </div>
+  </div>
+
 </div>
 
 <!-- FOOD COST -->
 <div class="section" id="sec-foodcost">
-  <div class="card"><div class="card-title">Combined Food Cost %</div><div id="foodCostCombined"></div></div>
+  <div class="two-col">
+    <div class="card"><div class="card-title">Combined Food Cost %</div><div id="foodCostCombined"></div></div>
+    <div class="card"><div class="card-title">All Suppliers <span class="accent">Combined</span></div><div class="chart-wrap"><canvas id="supplierChart"></canvas></div></div>
+  </div>
+  <div class="two-col">
+    <div class="card"><div class="card-title">🏪 CBD — Supplier Spend <span class="accent">Donut</span></div><div class="chart-wrap"><canvas id="supplierCBD"></canvas></div></div>
+    <div class="card"><div class="card-title">🏘 Rototuna — Supplier Spend <span class="accent">Donut</span></div><div class="chart-wrap"><canvas id="supplierROT"></canvas></div></div>
+  </div>
   <div class="two-col" id="foodCostBranches"></div>
 </div>
 
-<!-- LABOUR -->
+<!-- LABOUR / ROSTER -->
 <div class="section" id="sec-labour">
-  <!-- KPI row -->
   <div class="kpi-grid">
     <div class="kpi" style="--glow-col:#ef4444"><div class="kpi-glow"></div><div class="kpi-icon">🏪</div><div class="kpi-lbl">CBD Labour</div><div class="kpi-val" id="lkpiCBD">—</div><div class="kpi-sub" id="lkpiCBDsub"></div><div class="kpi-badge" id="lkpiCBDbadge"></div></div>
     <div class="kpi" style="--glow-col:#60a5fa"><div class="kpi-glow"></div><div class="kpi-icon">🏪</div><div class="kpi-lbl">Rototuna Labour</div><div class="kpi-val" id="lkpiROT">—</div><div class="kpi-sub" id="lkpiROTsub"></div><div class="kpi-badge" id="lkpiROTbadge"></div></div>
     <div class="kpi" style="--glow-col:#a855f7"><div class="kpi-glow"></div><div class="kpi-icon">⏱️</div><div class="kpi-lbl">Total Hours</div><div class="kpi-val" id="lkpiHours">—</div><div class="kpi-sub">This period</div></div>
     <div class="kpi" style="--glow-col:#10b981"><div class="kpi-glow"></div><div class="kpi-icon">👥</div><div class="kpi-lbl">Active Staff</div><div class="kpi-val" id="lkpiStaff">—</div><div class="kpi-sub">Across both stores</div></div>
   </div>
-
-  <!-- Sub-tabs -->
   <div class="sub-tabs">
-    <div class="sub-tab active" id="stab-profiles" onclick="setLabourTab('profiles')">👤 Staff Profiles</div>
-    <div class="sub-tab" id="stab-cbd" onclick="setLabourTab('cbd')">🏪 CBD Roster</div>
-    <div class="sub-tab" id="stab-rot" onclick="setLabourTab('rot')">🏪 Rototuna Roster</div>
+    <div class="sub-tab active" id="stab-cbd" onclick="setLabourTab('cbd')">🏪 CBD Roster</div>
+    <div class="sub-tab" id="stab-rot" onclick="setLabourTab('rot')">🏘 Rototuna Roster</div>
   </div>
-
-  <!-- Staff Profiles -->
-  <div id="labour-profiles">
+  <div id="labour-cbd">
     <div class="card">
-      <div class="card-title">Staff Profiles <button class="add-btn" style="font-size:11px" onclick="openStaffModal(null)">+ Add Staff</button></div>
-      <div class="staff-grid" id="staffGrid"></div>
-    </div>
-    <div class="two-col">
-      <div class="card"><div class="card-title">FOH vs BOH — CBD <span class="accent">Donut</span></div><div class="chart-wrap"><canvas id="fohbohCBD"></canvas></div></div>
-      <div class="card"><div class="card-title">FOH vs BOH — Rototuna <span class="accent">Donut</span></div><div class="chart-wrap"><canvas id="fohbohROT"></canvas></div></div>
-    </div>
-  </div>
-
-  <!-- CBD Roster -->
-  <div id="labour-cbd" style="display:none">
-    <div class="card">
-      <div class="card-title">CBD Roster — Mon to Sat (Closed Sunday) <span class="accent">Click cell to edit shift</span></div>
+      <div class="card-title">CBD Roster — Mon to Sat <span class="accent" style="font-size:10px;font-weight:500">Tab between cells · Enter to confirm · changes auto-save</span></div>
       <div class="roster-wrap"><table class="roster-tbl" id="rosterCBD"></table></div>
       <div class="roster-footer" id="rfCBD"></div>
     </div>
   </div>
-
-  <!-- Rototuna Roster -->
   <div id="labour-rot" style="display:none">
     <div class="card">
-      <div class="card-title">Rototuna Roster — 7 Days <span class="accent">Click cell to edit shift</span></div>
+      <div class="card-title">Rototuna Roster — 7 Days <span class="accent" style="font-size:10px;font-weight:500">Tab between cells · Enter to confirm · changes auto-save</span></div>
       <div class="roster-wrap"><table class="roster-tbl" id="rosterROT"></table></div>
       <div class="roster-footer" id="rfROT"></div>
     </div>
+  </div>
+</div>
+
+<!-- STAFF -->
+<div class="section" id="sec-staff">
+  <div class="card">
+    <div class="card-title">Staff Profiles <button class="add-btn" style="font-size:11px" onclick="openStaffModal(null)">+ Add Staff</button></div>
+    <div class="staff-grid" id="staffGrid"></div>
+  </div>
+  <div class="two-col">
+    <div class="card"><div class="card-title">FOH vs BOH — CBD <span class="accent">Donut</span></div><div class="chart-wrap"><canvas id="fohbohCBD"></canvas></div></div>
+    <div class="card"><div class="card-title">FOH vs BOH — Rototuna <span class="accent">Donut</span></div><div class="chart-wrap"><canvas id="fohbohROT"></canvas></div></div>
   </div>
 </div>
 
@@ -497,11 +521,12 @@ const DAY_FULL   = { mon:'Monday',tue:'Tuesday',wed:'Wednesday',thu:'Thursday',f
 const SB_HDR = { 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY, 'Content-Type':'application/json', 'Prefer':'return=representation' };
 
 // ══════════════════ STATE ══════════════════
-let period = 'weekly';
+let period = 'daily';
 let cachedSales=[], cachedInvoices=[], allStaff=[], allRoster=[];
 let salesChartInst=null, costChartInst=null, fohbohCBDInst=null, fohbohROTInst=null;
+let bSalesInst={}, bChannelInst={}, supplierChartInst=null, supplierCBDInst=null, supplierROTInst=null;
 let editingStaffId=null, bankRows=null;
-let labourSubTab='profiles';
+let labourSubTab='cbd';
 
 // ══════════════════ CLOCK ══════════════════
 function tick() {
@@ -516,6 +541,7 @@ function showSection(id, el) {
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('sec-'+id).classList.add('active');
   el.classList.add('active');
+  if (id==='staff') { renderStaffProfiles(); renderFOHBOHCharts(); }
 }
 function setPeriod(p, btn) {
   period = p;
@@ -526,7 +552,7 @@ function setPeriod(p, btn) {
 }
 function setLabourTab(tab) {
   labourSubTab = tab;
-  ['profiles','cbd','rot'].forEach(t => {
+  ['cbd','rot'].forEach(t => {
     document.getElementById('stab-'+t).classList.toggle('active', t===tab);
     document.getElementById('labour-'+t).style.display = t===tab ? 'block' : 'none';
   });
@@ -535,8 +561,12 @@ function setLabourTab(tab) {
 // ══════════════════ DATE RANGE ══════════════════
 function getDateRange() {
   const val = document.getElementById('dateInput').value;
+  if (period === 'daily') {
+    const d = val || new Date().toISOString().split('T')[0];
+    return { start:d, end:d };
+  }
   if (period === 'weekly') {
-    const base = val ? new Date(val) : (() => {
+    const base = val ? new Date(val+'T00:00:00') : (() => {
       const d=new Date(); d.setDate(d.getDate()-((d.getDay()+6)%7)); return d;
     })();
     const end = new Date(base); end.setDate(end.getDate()+6);
@@ -724,6 +754,7 @@ function renderSalesChart() {
 }
 
 function renderCostChart(food,labour,comm,fixed) {
+  const tot = food+labour+comm+fixed||1;
   if(costChartInst) costChartInst.destroy();
   costChartInst = new Chart($('costChart'),{
     type:'doughnut',
@@ -732,8 +763,10 @@ function renderCostChart(food,labour,comm,fixed) {
       backgroundColor:['rgba(168,85,247,.8)','rgba(239,68,68,.8)','rgba(245,158,11,.8)','rgba(59,130,246,.8)'],
       borderColor:['#a855f7','#ef4444','#f59e0b','#3b82f6'],borderWidth:1,hoverOffset:6
     }]},
-    options:{responsive:true,maintainAspectRatio:false,cutout:'65%',
-      plugins:{legend:{position:'right',labels:{color:'#94a3b8',font:{size:11},padding:14}}}}
+    options:{responsive:true,maintainAspectRatio:false,cutout:'58%',
+      plugins:{legend:{position:'right',labels:{color:'#94a3b8',font:{size:11},padding:14}},
+      tooltip:{callbacks:{label:ctx=>' '+nzd(ctx.raw)+' ('+((ctx.raw/tot)*100).toFixed(1)+'%)'}},
+      datalabels:{color:'#fff',font:{weight:'bold',size:11},formatter:(val)=>val>0?((val/tot)*100).toFixed(0)+'%':'',anchor:'center',align:'center'}}}
   });
 }
 
@@ -771,60 +804,133 @@ function renderSuppliers() {
 // ══════════════════ BRANCHES ══════════════════
 function renderBranches() {
   const { start, end } = getDateRange();
-  $('branchCards').innerHTML = ['CBD','Rototuna'].map(b=>{
-    const s=byBranch(cachedSales,b), inv=byBranch(cachedInvoices,b);
+
+  ['CBD','Rototuna'].forEach(b => {
+    const col = b==='CBD' ? '#ef4444' : '#60a5fa';
+    const bCol = b==='CBD' ? 'rgba(239,68,68,' : 'rgba(96,165,250,';
+    const s = byBranch(cachedSales, b);
+    const inv = byBranch(cachedInvoices, b);
     const gross=sumField(s,'gross_total'), net=sumField(s,'net_total'), comm=sumField(s,'total_comm');
     const food=sumField(inv,'amount');
-    const lab=calcLabour(b,start,end).cost;
-    const fixed=calcFixed(b,start,end);
+    const lab=calcLabour(b,start,end).cost, fixed=calcFixed(b,start,end);
     const profit=net-food-lab-fixed;
-    const col=b==='CBD'?'#ef4444':'#60a5fa';
     const foodP=net?food/net*100:0, labP=net?lab/net*100:0, fixP=net?fixed/net*100:0;
-    return '<div class="card">'+
-      '<div class="branch-header" style="color:'+col+'">🏪 '+b+'</div>'+
-      '<div class="stat-row"><span class="stat-lbl">Gross Sales</span><span class="stat-val">'+nzd(gross)+'</span></div>'+
-      '<div class="stat-row"><span class="stat-lbl">Commission</span><span class="stat-val neg">'+nzd(comm)+'</span></div>'+
-      '<div class="stat-row"><span class="stat-lbl">Net Sales</span><span class="stat-val cyan">'+nzd(net)+'</span></div>'+
-      '<div class="stat-row"><span class="stat-lbl">Food Cost</span><span class="stat-val '+(foodP>30?'neg':foodP>27?'warn':'pos')+'">'+nzd(food)+' ('+foodP.toFixed(1)+'%)</span></div>'+
-      '<div class="stat-row"><span class="stat-lbl">Labour</span><span class="stat-val '+(labP>35?'neg':labP>32?'warn':'pos')+'">'+nzd(lab)+' ('+labP.toFixed(1)+'%)</span></div>'+
-      '<div class="stat-row"><span class="stat-lbl">Fixed Costs</span><span class="stat-val">'+nzd(fixed)+'</span></div>'+
-      '<div class="glow-sep"></div>'+
-      '<div class="stat-row"><span class="stat-lbl">Net Profit</span><span class="stat-val '+(profit>=0?'pos':'neg')+'">'+nzd(profit)+'</span></div>'+
-      '<div style="margin-top:14px">'+
-      '<div class="cbar-row"><span class="cbar-lbl">Food</span><div class="cbar-track"><div class="cbar-fill '+(foodP>30?'r':foodP>27?'a':'g')+'" style="width:'+Math.min(foodP*2,100)+'%"></div></div><span class="cbar-pct">'+foodP.toFixed(0)+'%</span></div>'+
-      '<div class="cbar-row"><span class="cbar-lbl">Labour</span><div class="cbar-track"><div class="cbar-fill '+(labP>35?'r':labP>32?'a':'g')+'" style="width:'+Math.min(labP*2,100)+'%"></div></div><span class="cbar-pct">'+labP.toFixed(0)+'%</span></div>'+
-      '<div class="cbar-row"><span class="cbar-lbl">Fixed</span><div class="cbar-track"><div class="cbar-fill g" style="width:'+Math.min(fixP*2,100)+'%"></div></div><span class="cbar-pct">'+fixP.toFixed(0)+'%</span></div>'+
-      '</div></div>';
-  }).join('');
+
+    // KPI cards
+    $('bKPI_'+b).innerHTML = [
+      {icon:'💰',lbl:'Net Sales',val:nzd(net),sub:'Gross '+nzd(gross),gc:'var(--cyan)'},
+      {icon:'🥗',lbl:'Food Cost',val:nzd(food),sub:foodP.toFixed(1)+'% of net',gc:foodP>30?'var(--red)':foodP>27?'var(--orange)':'var(--green)'},
+      {icon:'👥',lbl:'Labour',val:nzd(lab),sub:labP.toFixed(1)+'% of net',gc:labP>35?'var(--red)':'var(--orange)'},
+      {icon:'🟢',lbl:'Net Profit',val:nzd(profit),sub:(net?profit/net*100:0).toFixed(1)+'% margin',gc:profit>=0?'var(--green)':'var(--red)'},
+    ].map(k=>'<div class="kpi" style="--glow-col:'+k.gc+'"><div class="kpi-glow"></div><div class="kpi-icon">'+k.icon+'</div><div class="kpi-lbl">'+k.lbl+'</div><div class="kpi-val">'+k.val+'</div><div class="kpi-sub">'+k.sub+'</div></div>').join('');
+
+    // Sales by channel donut with % labels
+    const ih=sumField(s,'inhouse');
+    const ub=sumField(s,'uber_comm')>0 ? sumField(s,'uber')-sumField(s,'uber_comm') : sumField(s,'uber')*.7;
+    const dd=sumField(s,'doordash_comm')>0 ? sumField(s,'doordash')-sumField(s,'doordash_comm') : sumField(s,'doordash')*.73;
+    const bo=sumField(s,'booknorders');
+    const chTotal = ih+ub+dd+bo || 1;
+    if(bChannelInst[b]) bChannelInst[b].destroy();
+    bChannelInst[b] = new Chart($('bChannel_'+b),{type:'doughnut',data:{
+      labels:['In-House','Uber Eats','DoorDash','BooknOrders'],
+      datasets:[{data:[ih,ub,dd,bo],
+        backgroundColor:['rgba(16,185,129,.8)','rgba(239,68,68,.8)','rgba(245,158,11,.8)','rgba(168,85,247,.8)'],
+        borderColor:['#10b981','#ef4444','#f59e0b','#a855f7'],borderWidth:1,hoverOffset:6
+      }]
+    },options:{responsive:true,maintainAspectRatio:false,cutout:'55%',
+      plugins:{
+        legend:{position:'right',labels:{color:'#94a3b8',font:{size:11},padding:10}},
+        tooltip:{callbacks:{label:ctx=>' '+nzd(ctx.raw)+' ('+((ctx.raw/chTotal)*100).toFixed(1)+'%)'}},
+        datalabels:{
+          color:'#fff',font:{weight:'bold',size:11},
+          formatter:(val)=>val>0?((val/chTotal)*100).toFixed(0)+'%':'',
+          anchor:'center',align:'center'
+        }
+      }}});
+
+    // Cost detail card
+    $('bDetail_'+b).innerHTML =
+      '<div class="card-title">Cost Breakdown</div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0">' +
+        '<div>'+
+          '<div class="stat-row"><span class="stat-lbl">Gross Sales</span><span class="stat-val">'+nzd(gross)+'</span></div>'+
+          '<div class="stat-row"><span class="stat-lbl">Commission Lost</span><span class="stat-val neg">-'+nzd(comm)+'</span></div>'+
+          '<div class="stat-row"><span class="stat-lbl">Net Sales</span><span class="stat-val cyan">'+nzd(net)+'</span></div>'+
+          '<div class="stat-row"><span class="stat-lbl">Food Cost</span><span class="stat-val '+(foodP>30?'neg':foodP>27?'warn':'pos')+'">'+nzd(food)+'</span></div>'+
+          '<div class="stat-row"><span class="stat-lbl">Labour</span><span class="stat-val '+(labP>35?'neg':labP>32?'warn':'pos')+'">'+nzd(lab)+'</span></div>'+
+          '<div class="stat-row"><span class="stat-lbl">Fixed Costs</span><span class="stat-val">'+nzd(fixed)+'</span></div>'+
+          '<div class="glow-sep"></div>'+
+          '<div class="stat-row"><span class="stat-lbl">Net Profit</span><span class="stat-val '+(profit>=0?'pos':'neg')+'">'+nzd(profit)+'</span></div>'+
+        '</div>'+
+        '<div style="padding-left:24px">'+
+          '<div class="cbar-row"><span class="cbar-lbl">Food</span><div class="cbar-track"><div class="cbar-fill '+(foodP>30?'r':foodP>27?'a':'g')+'" style="width:'+Math.min(foodP*2,100)+'%"></div></div><span class="cbar-pct">'+foodP.toFixed(0)+'%</span></div>'+
+          '<div class="cbar-row"><span class="cbar-lbl">Labour</span><div class="cbar-track"><div class="cbar-fill '+(labP>35?'r':labP>32?'a':'g')+'" style="width:'+Math.min(labP*2,100)+'%"></div></div><span class="cbar-pct">'+labP.toFixed(0)+'%</span></div>'+
+          '<div class="cbar-row"><span class="cbar-lbl">Fixed</span><div class="cbar-track"><div class="cbar-fill g" style="width:'+Math.min(fixP*2,100)+'%"></div></div><span class="cbar-pct">'+fixP.toFixed(0)+'%</span></div>'+
+        '</div>'+
+      '</div>';
+  });
 }
 
 // ══════════════════ FOOD COST ══════════════════
 function renderFoodCost() {
+  const { start, end } = getDateRange();
   const net=sumField(cachedSales,'net_total'), food=sumField(cachedInvoices,'amount');
   const p=net?food/net*100:0;
+
   $('foodCostCombined').innerHTML =
     '<div class="stat-row"><span class="stat-lbl">Total Invoice Spend</span><span class="stat-val cyan">'+nzd(food)+'</span></div>'+
     '<div class="stat-row"><span class="stat-lbl">Net Sales</span><span class="stat-val">'+nzd(net)+'</span></div>'+
     '<div class="stat-row"><span class="stat-lbl">Food Cost %</span><span class="stat-val '+(p>30?'neg':p>27?'warn':'pos')+'">'+p.toFixed(1)+'% (target &lt;30%)</span></div>'+
     '<div class="cbar-row" style="margin-top:14px"><span class="cbar-lbl">Combined</span><div class="cbar-track" style="height:10px"><div class="cbar-fill '+(p>30?'r':p>27?'a':'g')+'" style="width:'+Math.min(p*2,100)+'%;height:10px;border-radius:4px"></div></div><span class="cbar-pct">'+p.toFixed(0)+'%</span></div>';
 
+  // Supplier donut
+  const supMap={};
+  cachedInvoices.forEach(r=>{ const k=r.supplier||'Other'; supMap[k]=(supMap[k]||0)+(Number(r.amount)||0); });
+  const supEntries=Object.entries(supMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const supColors=['rgba(0,212,255,.8)','rgba(168,85,247,.8)','rgba(16,185,129,.8)','rgba(245,158,11,.8)','rgba(239,68,68,.8)','rgba(96,165,250,.8)','rgba(251,191,36,.8)','rgba(52,211,153,.8)'];
+  const supTotal = supEntries.reduce((a,e)=>a+e[1],0)||1;
+  if(supplierChartInst) supplierChartInst.destroy();
+  supplierChartInst = new Chart($('supplierChart'),{type:'doughnut',data:{
+    labels:supEntries.map(e=>e[0]),
+    datasets:[{data:supEntries.map(e=>e[1]),backgroundColor:supColors,borderColor:supColors.map(c=>c.replace('.8','1')),borderWidth:1,hoverOffset:6}]
+  },options:{responsive:true,maintainAspectRatio:false,cutout:'55%',
+    plugins:{legend:{position:'right',labels:{color:'#94a3b8',font:{size:10},padding:8}},
+    tooltip:{callbacks:{label:ctx=>' '+nzd(ctx.raw)+' ('+((ctx.raw/supTotal)*100).toFixed(1)+'%)'}},
+    datalabels:{color:'#fff',font:{weight:'bold',size:10},formatter:(val)=>val>0?((val/supTotal)*100).toFixed(0)+'%':'',anchor:'center',align:'center'}}}});
+
+  // Per-branch supplier donuts
+  const branchSupColors=['rgba(0,212,255,.8)','rgba(168,85,247,.8)','rgba(16,185,129,.8)','rgba(245,158,11,.8)','rgba(239,68,68,.8)','rgba(96,165,250,.8)','rgba(251,191,36,.8)','rgba(52,211,153,.8)'];
+  [[supplierCBDInst,'supplierCBD','CBD'],[supplierROTInst,'supplierROT','Rototuna']].forEach(([inst,canvasId,b],idx)=>{
+    const bSupMap={};
+    byBranch(cachedInvoices,b).forEach(r=>{ const k=r.supplier||'Other'; bSupMap[k]=(bSupMap[k]||0)+(Number(r.amount)||0); });
+    const bEntries=Object.entries(bSupMap).sort((a,c)=>c[1]-a[1]).slice(0,8);
+    const bTotal=bEntries.reduce((a,e)=>a+e[1],0)||1;
+    if(inst) inst.destroy();
+    const ni=new Chart($(canvasId),{type:'doughnut',data:{
+      labels:bEntries.map(e=>e[0]),
+      datasets:[{data:bEntries.map(e=>e[1]),backgroundColor:branchSupColors,borderColor:branchSupColors.map(c=>c.replace('.8','1')),borderWidth:1,hoverOffset:6}]
+    },options:{responsive:true,maintainAspectRatio:false,cutout:'55%',
+      plugins:{legend:{position:'bottom',labels:{color:'#94a3b8',font:{size:10},padding:8,boxWidth:10}},
+      tooltip:{callbacks:{label:ctx=>' '+nzd(ctx.raw)+' ('+((ctx.raw/bTotal)*100).toFixed(1)+'%)'}},
+      datalabels:{color:'#fff',font:{weight:'bold',size:11},formatter:(val)=>val>0?((val/bTotal)*100).toFixed(0)+'%':'',anchor:'center',align:'center'}}}});
+    if(idx===0) supplierCBDInst=ni; else supplierROTInst=ni;
+  });
+
   $('foodCostBranches').innerHTML = ['CBD','Rototuna'].map(b=>{
     const bnet=sumField(byBranch(cachedSales,b),'net_total');
     const bfood=sumField(byBranch(cachedInvoices,b),'amount');
     const bp=bnet?bfood/bnet*100:0;
     const col=b==='CBD'?'#ef4444':'#60a5fa';
-    const supMap={};
-    byBranch(cachedInvoices,b).forEach(r=>{
-      const k=r.supplier||'Unknown'; supMap[k]=(supMap[k]||0)+(Number(r.amount)||0);
-    });
-    const sups=Object.entries(supMap).sort((a,c)=>c[1]-a[1]).slice(0,5);
+    const bSupMap={};
+    byBranch(cachedInvoices,b).forEach(r=>{ const k=r.supplier||'Unknown'; bSupMap[k]=(bSupMap[k]||0)+(Number(r.amount)||0); });
+    const sups=Object.entries(bSupMap).sort((a,c)=>c[1]-a[1]).slice(0,5);
     return '<div class="card">'+
       '<div class="branch-header" style="color:'+col+'">🏪 '+b+'</div>'+
       '<div class="stat-row"><span class="stat-lbl">Food Cost</span><span class="stat-val '+(bp>30?'neg':bp>27?'warn':'pos')+'">'+nzd(bfood)+'</span></div>'+
       '<div class="stat-row"><span class="stat-lbl">% of Net Sales</span><span class="stat-val '+(bp>30?'neg':'pos')+'">'+bp.toFixed(1)+'%</span></div>'+
       '<div class="glow-sep"></div>'+
       '<div style="font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px">Top Suppliers</div>'+
-      sups.map(function(sv){ return '<div class="cbar-row"><span class="cbar-lbl" style="width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+sv[0]+'">'+sv[0]+'</span><div class="cbar-track"><div class="cbar-fill g" style="width:'+(bfood?sv[1]/bfood*100:0)+'%"></div></div><span class="cbar-pct">'+nzd(sv[1])+'</span></div>'; }).join('')+
+      sups.map(sv=>'<div class="cbar-row"><span class="cbar-lbl" style="width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+sv[0]+'">'+sv[0]+'</span><div class="cbar-track"><div class="cbar-fill g" style="width:'+(bfood?sv[1]/bfood*100:0)+'%"></div></div><span class="cbar-pct">'+nzd(sv[1])+'</span></div>').join('')+
       '</div>';
   }).join('');
 }
@@ -845,10 +951,8 @@ function renderLabour() {
   $('lkpiHours').textContent = (cbd.hours+rot.hours).toFixed(1)+'h';
   $('lkpiStaff').textContent = allStaff.filter(s=>s.active).length;
 
-  renderStaffProfiles();
   renderRosterTable('CBD');
   renderRosterTable('Rototuna');
-  renderFOHBOHCharts();
 }
 
 // ─── Staff Profiles ───
@@ -908,8 +1012,8 @@ function renderRosterTable(branch) {
 
     posStaff.forEach(staff => {
       // Get this staff's roster rows for this branch
-      let rosterRows = allRoster.filter(r=>r.staff_id===staff.id && r.branch===branch);
-      // Always show at least 1 row, max 2 (for split shifts)
+      let rosterRows = allRoster.filter(r=>r.staff_id===staff.id && r.branch===branch)
+        .sort((a,b)=>(a.shift_num||1)-(b.shift_num||1)).slice(0,2); // max 2 rows
       if (rosterRows.length===0) rosterRows = [{ id:null, staff_id:staff.id, branch, shift_num:1, mon:'',tue:'',wed:'',thu:'',fri:'',sat:'',sun:'' }];
 
       rosterRows.forEach((row, ri) => {
@@ -934,9 +1038,9 @@ function renderRosterTable(branch) {
           const cls = val===''?'no-shift':(val.toLowerCase().includes('closed')?'closed':'has-shift');
           html += '<td>' +
             '<input class="shift-input '+cls+'" value="'+val+'" placeholder="—" ' +
-            'data-rostid="'+(row.id||'')+'" data-staffid="'+staff.id+'" data-branch="'+branch+'" data-day="'+day+'" data-shiftnum="'+(row.shift_num||1)+'" ' +
-            'onblur="saveShift(this)" oninput="updateShiftClass(this)">' +
-            (hrs>0?'<div class="hours-cell">'+hrs.toFixed(1)+'h</div>':'') +
+            'data-rostid="'+(row.id||'')+'" data-staffid="'+staff.id+'" data-branch="'+branch+'" data-day="'+day+'" data-shiftnum="'+(row.shift_num||1)+'" data-saved="'+val+'" ' +
+            'onblur="saveShiftIfChanged(this)" oninput="updateShiftClass(this)" onkeydown="shiftKeyDown(event,this)">' +
+            '<div class="hours-cell" style="'+(hrs>0?'':'display:none')+'">'+hrs.toFixed(1)+'h</div>' +
             '</td>';
         });
         html += '<td style="font-size:11px;color:var(--t3)">'+weekHrs.toFixed(1)+'h</td>';
@@ -990,24 +1094,38 @@ function renderRosterTable(branch) {
     '<div class="rf-stat"><div class="rf-lbl">Staff on Roster</div><div class="rf-val">'+staffForBranch.length+'</div></div>';
 }
 
-// Update input class as user types
+// Update input class + hours cell as user types
 function updateShiftClass(inp) {
   const v = inp.value.trim().toLowerCase();
   inp.className = 'shift-input '+(v===''?'no-shift':v.includes('closed')?'closed':'has-shift');
-  // Update hours cell below
   const hrs = shiftHours(inp.value);
   const hc = inp.nextElementSibling;
   if (hc && hc.classList.contains('hours-cell')) {
     hc.textContent = hrs>0 ? hrs.toFixed(1)+'h' : '';
-  } else if (hrs>0) {
-    const d=document.createElement('div'); d.className='hours-cell'; d.textContent=hrs.toFixed(1)+'h';
-    inp.after(d);
+    hc.style.display = hrs>0 ? '' : 'none';
   }
 }
 
-// Save shift on blur
-async function saveShift(inp) {
-  const val     = inp.value.trim();
+// Enter key: save + stay in cell (don't jump rows)
+function shiftKeyDown(e, inp) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    inp.blur();  // triggers saveShiftIfChanged
+  }
+}
+
+// Only save if value actually changed — prevents ghost rows and double-saves
+const _savingCells = new Set();
+async function saveShiftIfChanged(inp) {
+  const val    = inp.value.trim();
+  const saved  = inp.dataset.saved || '';
+  if (val === saved) return;  // nothing changed
+
+  const key = (inp.dataset.rostid||'new') + '_' + inp.dataset.day;
+  if (_savingCells.has(key)) return;
+  _savingCells.add(key);
+
+  inp.classList.add('saving');
   const rostId  = inp.dataset.rostid;
   const staffId = parseInt(inp.dataset.staffid);
   const branch  = inp.dataset.branch;
@@ -1016,12 +1134,10 @@ async function saveShift(inp) {
 
   try {
     if (rostId) {
-      // Update existing roster row
       await sbPatch('roster', rostId, { [day]: val });
       const row = allRoster.find(r=>r.id===parseInt(rostId));
       if (row) row[day] = val;
     } else {
-      // Create new roster row
       const body = { staff_id:staffId, branch, shift_num:snum, mon:'',tue:'',wed:'',thu:'',fri:'',sat:'',sun:'', [day]:val };
       const res = await sbPost('roster', body);
       if (res && res[0]) {
@@ -1029,12 +1145,20 @@ async function saveShift(inp) {
         inp.dataset.rostid = res[0].id;
       }
     }
+    inp.dataset.saved = val;
+    inp.classList.remove('saving');
+    inp.classList.add('saved');
+    setTimeout(() => inp.classList.remove('saved'), 1200);
   } catch(e) {
     console.error('Save shift failed:', e);
+    inp.classList.remove('saving');
   }
+  _savingCells.delete(key);
 }
 
 async function addRosterRow(staffId, branch) {
+  const existing = allRoster.filter(r=>r.staff_id===staffId && r.branch===branch);
+  if (existing.length >= 2) return; // max 2 rows
   try {
     const body = { staff_id:staffId, branch, shift_num:2, mon:'',tue:'',wed:'',thu:'',fri:'',sat:'',sun:'' };
     const res = await sbPost('roster', body);
@@ -1059,12 +1183,14 @@ function renderFOHBOHCharts() {
     const canvasId=b==='CBD'?'fohbohCBD':'fohbohROT';
     const inst=b==='CBD'?fohbohCBDInst:fohbohROTInst;
     if(inst) inst.destroy();
+    const fohbohTot = foh+boh||1;
     const ni=new Chart($(canvasId),{
       type:'doughnut',
       data:{labels:['FOH','BOH'],datasets:[{data:[foh,boh],backgroundColor:['rgba(168,85,247,.75)','rgba(245,158,11,.75)'],borderColor:['#a855f7','#f59e0b'],borderWidth:1}]},
-      options:{responsive:true,maintainAspectRatio:false,cutout:'62%',
+      options:{responsive:true,maintainAspectRatio:false,cutout:'58%',
         plugins:{legend:{position:'right',labels:{color:'#94a3b8',font:{size:11}}},
-        tooltip:{callbacks:{label:function(ctx){return ' '+nzd(ctx.raw);}}}}}
+        tooltip:{callbacks:{label:function(ctx){return ' '+nzd(ctx.raw)+' ('+(ctx.raw/fohbohTot*100).toFixed(1)+'%)'}}},
+        datalabels:{color:'#fff',font:{weight:'bold',size:12},formatter:(val)=>val>0?(val/fohbohTot*100).toFixed(0)+'%':'',anchor:'center',align:'center'}}}
     });
     if(b==='CBD') fohbohCBDInst=ni; else fohbohROTInst=ni;
   });
@@ -1109,6 +1235,7 @@ async function deleteStaff() {
     closeStaffModal(); await loadAll();
   } catch(e) { alert('Delete failed: '+e.message); }
 }
+
 $('staffModal').addEventListener('click', e=>{ if(e.target===$('staffModal')) closeStaffModal(); });
 
 // ══════════════════ CASH FLOW ══════════════════
@@ -1143,54 +1270,32 @@ function handleBankUpload(input) {
   };
   reader.readAsText(file);
 }
-function processBankWithBranch(b) {
-  $('bankModal').classList.remove('open');
-  const income=[], expenses=[];
-  (bankRows||[]).forEach(row=>{
-    const val=parseFloat(row[2])||0;
-    if(val>0) income.push(val); else expenses.push(Math.abs(val));
-  });
-  const totalIn=income.reduce((a,v)=>a+v,0), totalOut=expenses.reduce((a,v)=>a+v,0);
-  $('bankPreview').innerHTML='<div style="margin-top:16px;font-size:12px;color:var(--t2)">'+
-    '<div class="stat-row"><span class="stat-lbl">Branch</span><span class="stat-val cyan">'+b+'</span></div>'+
-    '<div class="stat-row"><span class="stat-lbl">Total Inflows</span><span class="stat-val pos">'+nzd(totalIn)+'</span></div>'+
-    '<div class="stat-row"><span class="stat-lbl">Total Outflows</span><span class="stat-val neg">'+nzd(totalOut)+'</span></div>'+
-    '<div class="stat-row"><span class="stat-lbl">Net Position</span><span class="stat-val '+(totalIn-totalOut>=0?'pos':'neg')+'">'+nzd(totalIn-totalOut)+'</span></div>'+
-    '<div class="stat-row"><span class="stat-lbl">Transactions</span><span class="stat-val">'+(bankRows||[]).length+'</span></div>'+
-    '</div>';
-}
 
 // ══════════════════ AI ══════════════════
 async function runAI(branch, type) {
+  const { start, end } = getDateRange();
   const elId = branch==='CBD'?'aiCBD':branch==='Rototuna'?'aiROT':'aiBoth';
-  const el=$(elId);
+  const el = $(elId);
   el.className='ai-output loading'; el.textContent='Analysing…';
 
-  const { start, end } = getDateRange();
   const s = branch==='Both' ? cachedSales : byBranch(cachedSales,branch);
   const inv = branch==='Both' ? cachedInvoices : byBranch(cachedInvoices,branch);
   const net=sumField(s,'net_total'), food=sumField(inv,'amount');
-  const labObj = branch==='Both'
-    ? { cost:calcLabour('CBD',start,end).cost+calcLabour('Rototuna',start,end).cost,
-        hours:calcLabour('CBD',start,end).hours+calcLabour('Rototuna',start,end).hours }
-    : calcLabour(branch,start,end);
-  const fixed = branch==='Both'
-    ? calcFixed('CBD',start,end)+calcFixed('Rototuna',start,end)
-    : calcFixed(branch,start,end);
-  const lab=labObj.cost, hrs=labObj.hours;
+  const lab=branch==='Both'?(calcLabour('CBD',start,end).cost+calcLabour('Rototuna',start,end).cost):calcLabour(branch,start,end).cost;
+  const hrs=branch==='Both'?(calcLabour('CBD',start,end).hours+calcLabour('Rototuna',start,end).hours):calcLabour(branch,start,end).hours;
+  const fixed=branch==='Both'?(calcFixed('CBD',start,end)+calcFixed('Rototuna',start,end)):calcFixed(branch,start,end);
   const profit=net-food-lab-fixed;
 
   const supMap={};
   inv.forEach(r=>{ const k=r.supplier||'?'; supMap[k]=(supMap[k]||0)+r.amount; });
   const topSups=Object.entries(supMap).sort((a,b)=>b[1]-a[1]).slice(0,4).map(function(kv){ return kv[0]+' $'+kv[1].toFixed(0); }).join(', ')||'none';
 
-  const prompts = {
+      const prompts = {
     summary: 'NZ restaurant '+branch+' executive summary ('+start+' to '+end+'). Net Sales $'+net.toFixed(0)+', Food Cost $'+food.toFixed(0)+' ('+pct(food,net)+'), Labour $'+lab.toFixed(0)+' '+hrs.toFixed(0)+'hrs ('+pct(lab,net)+'), Fixed $'+fixed.toFixed(0)+', Net Profit $'+profit.toFixed(0)+'. Give a concise 3-4 sentence summary with top 2 action items.',
     food: 'NZ restaurant food cost analysis for '+branch+' ('+start+'-'+end+'). Net Sales $'+net.toFixed(0)+', Food Cost $'+food.toFixed(0)+' ('+pct(food,net)+', target <30%). Top suppliers: '+topSups+'. Give specific food cost reduction recommendations.',
     labour: 'NZ restaurant labour analysis for '+branch+' ('+start+'-'+end+'). Net Sales $'+net.toFixed(0)+', Labour $'+lab.toFixed(0)+' for '+hrs.toFixed(0)+' hours ('+pct(lab,net)+', target <35%). Avg rate $'+(hrs>0?(lab/hrs).toFixed(2):'0')+'/hr. Give specific recommendations to optimise labour scheduling.',
     cashflow: 'NZ restaurant cash flow for '+branch+' ('+start+'-'+end+'). Net $'+net.toFixed(0)+', Food -$'+food.toFixed(0)+', Labour -$'+lab.toFixed(0)+', Fixed -$'+fixed.toFixed(0)+', Operating CF $'+profit.toFixed(0)+'. Give 3 specific cash flow improvement recommendations.'
   };
-
   try {
     const r=await fetch(AI_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:600,messages:[{role:'user',content:prompts[type]}]})});
     const d=await r.json();
@@ -1199,9 +1304,9 @@ async function runAI(branch, type) {
     el.className='ai-output error'; el.textContent='AI Error: '+e.message;
   }
 }
-
 // ══════════════════ INIT ══════════════════
 document.getElementById('dateInput').type = 'date';
+document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
 loadAll();
 setInterval(loadAll, 30000);
 </script>
