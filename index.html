@@ -247,6 +247,26 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 .week-nav-lbl { flex:1; text-align:center; font-size:12px; font-weight:700; color:var(--cyan); }
 .week-nav-today { background:var(--cyan-dim); border:1px solid var(--border2); color:var(--cyan); padding:5px 12px; border-radius:7px; font-size:11px; font-weight:700; cursor:pointer; }
 
+/* ASSISTANT CHAT */
+.chat-wrap { display:flex; flex-direction:column; height:520px; }
+.chat-history { flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:12px; scroll-behavior:smooth; }
+.chat-history::-webkit-scrollbar { width:4px; }
+.chat-history::-webkit-scrollbar-thumb { background:var(--s3); border-radius:2px; }
+.chat-msg { max-width:85%; padding:12px 16px; border-radius:12px; font-size:13px; line-height:1.6; white-space:pre-wrap; word-wrap:break-word; }
+.chat-msg.user { background:var(--cyan-dim); border:1px solid var(--border2); color:var(--t1); align-self:flex-end; border-bottom-right-radius:3px; }
+.chat-msg.assistant { background:var(--s2); border:1px solid var(--border); color:var(--t2); align-self:flex-start; border-bottom-left-radius:3px; }
+.chat-msg.loading { color:var(--cyan); font-style:italic; }
+.chat-input-row { display:flex; gap:8px; padding:12px; border-top:1px solid var(--border); background:var(--s1); border-radius:0 0 14px 14px; }
+.chat-input { flex:1; background:var(--s2); border:1px solid var(--border); border-radius:8px; padding:10px 14px; font-size:13px; color:var(--t1); outline:none; resize:none; font-family:inherit; transition:border .15s; }
+.chat-input:focus { border-color:var(--cyan); }
+.chat-send { background:linear-gradient(135deg,#00d4ff,#0ea5e9); color:#000; border:none; border-radius:8px; padding:10px 18px; font-size:13px; font-weight:800; cursor:pointer; transition:all .15s; white-space:nowrap; }
+.chat-send:hover { box-shadow:0 0 16px rgba(0,212,255,.4); }
+.chat-send:disabled { background:var(--s3); color:var(--t3); cursor:not-allowed; box-shadow:none; }
+.quick-prompts { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
+.qp-btn { padding:7px 14px; border:1px solid var(--border); border-radius:20px; background:var(--s2); color:var(--t2); font-size:11px; font-weight:700; cursor:pointer; transition:all .15s; }
+.qp-btn:hover { border-color:var(--cyan); color:var(--cyan); background:var(--cyan-dim); }
+.context-badge { display:inline-flex; align-items:center; gap:5px; background:rgba(16,185,129,.1); border:1px solid rgba(16,185,129,.2); border-radius:6px; padding:3px 10px; font-size:10px; color:#10b981; font-weight:700; margin-bottom:12px; }
+
 /* AI */
 .ai-btns { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
 .ai-btn { padding:6px 14px; border:1px solid var(--border); border-radius:8px; background:var(--s2); color:var(--t2); font-size:11px; font-weight:700; cursor:pointer; transition:all .2s; text-transform:uppercase; letter-spacing:.5px; }
@@ -313,6 +333,7 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
   <div class="nav-item" onclick="showSection('labour',this)">📅 Roster</div>
   <div class="nav-item" onclick="showSection('cashflow',this)">💸 Cash Flow</div>
   <div class="nav-item" onclick="showSection('ai',this)">🤖 AI Analysis</div>
+  <div class="nav-item" onclick="showSection('assistant',this)">🧠 Assistant</div>
   <div class="nav-item" onclick="showSection('staff',this)">👤 Staff</div>
 </div>
 
@@ -484,6 +505,64 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
   </div>
 </div>
 
+
+<!-- ASSISTANT -->
+<div class="section" id="sec-assistant">
+  <div class="two-col" style="margin-bottom:0">
+
+    <!-- Chat panel -->
+    <div class="card" style="padding:0;overflow:hidden;display:flex;flex-direction:column">
+      <div style="padding:16px 20px;border-bottom:1px solid var(--border);background:var(--s2)">
+        <div class="card-title" style="margin-bottom:4px">🧠 AI Restaurant Assistant</div>
+        <div class="context-badge" id="assistantContextBadge">⏳ Loading data…</div>
+      </div>
+      <div class="chat-wrap">
+        <div class="chat-history" id="chatHistory">
+          <div class="chat-msg assistant">👋 Hi! I'm your restaurant assistant. I have access to your sales, food costs, labour, and supplier data for the selected period. Ask me anything about your business!</div>
+        </div>
+        <div class="chat-input-row">
+          <textarea class="chat-input" id="chatInput" rows="2" placeholder="Ask me anything about your restaurant…" onkeydown="chatKeyDown(event)"></textarea>
+          <button class="chat-send" id="chatSendBtn" onclick="sendChat()">Send ↑</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick prompts + context panel -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="card">
+        <div class="card-title">⚡ Quick Prompts</div>
+        <div class="quick-prompts">
+          <button class="qp-btn" onclick="quickPrompt('daily')">📊 Daily Briefing</button>
+          <button class="qp-btn" onclick="quickPrompt('food')">🥗 Food Cost Check</button>
+          <button class="qp-btn" onclick="quickPrompt('labour')">👥 Labour Review</button>
+          <button class="qp-btn" onclick="quickPrompt('promo')">💡 Promo Ideas</button>
+          <button class="qp-btn" onclick="quickPrompt('strategy')">📈 Sales Strategy</button>
+          <button class="qp-btn" onclick="quickPrompt('alerts')">⚠️ Cost Alerts</button>
+          <button class="qp-btn" onclick="quickPrompt('cashflow')">💸 Cash Flow</button>
+          <button class="qp-btn" onclick="quickPrompt('menu')">🍽️ Menu Advice</button>
+          <button class="qp-btn" onclick="quickPrompt('compare')">🔄 CBD vs Rototuna</button>
+          <button class="qp-btn" onclick="quickPrompt('forecast')">🔮 Forecast Tips</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">📋 Current Data Snapshot</div>
+        <div id="assistantSnapshot" style="font-size:12px;color:var(--t2);line-height:1.8">
+          <div class="loading-msg">Load data first…</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="justify-content:space-between">
+          💬 Conversation
+          <button onclick="clearChat()" style="background:none;border:none;color:var(--t3);font-size:11px;cursor:pointer;font-weight:700">Clear</button>
+        </div>
+        <div style="font-size:11px;color:var(--t3);line-height:1.7">The assistant remembers your conversation. Ask follow-up questions naturally.<br><br>
+        <strong style="color:var(--t2)">Coming soon:</strong> dish-level sales data, menu costing, and ingredient tracking.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 </div><!-- end main -->
 
 <!-- STAFF MODAL -->
@@ -578,6 +657,7 @@ function showSection(id, el) {
   document.getElementById('sec-'+id).classList.add('active');
   el.classList.add('active');
   if (id==='staff') { renderStaffProfiles(); renderFOHBOHCharts(); }
+  if (id==='assistant') updateAssistantSnapshot();
 }
 function setPeriod(p, btn) {
   period = p;
@@ -728,6 +808,7 @@ async function loadAll() {
   renderFoodCost();
   renderLabour();
   renderCashFlow();
+  if(document.getElementById('sec-assistant').classList.contains('active')) updateAssistantSnapshot();
 }
 
 // ══════════════════ ROSTER WEEK NAV ══════════════════
@@ -1404,6 +1485,175 @@ async function runAI(branch, type) {
     el.className='ai-output error'; el.textContent='AI Error: '+e.message;
   }
 }
+// ══════════════════ AI ASSISTANT ══════════════════
+var chatMessages = []; // conversation history
+
+function buildRestaurantContext() {
+  const { start, end } = getDateRange();
+  const cbdS = byBranch(cachedSales,'CBD'), rotS = byBranch(cachedSales,'Rototuna');
+  const cbdI = byBranch(cachedInvoices,'CBD'), rotI = byBranch(cachedInvoices,'Rototuna');
+  const cbdNet = sumField(cbdS,'net_total'), rotNet = sumField(rotS,'net_total');
+  const cbdFood = sumField(cbdI,'amount'), rotFood = sumField(rotI,'amount');
+  const cbd = calcLabour('CBD',start,end), rot = calcLabour('Rototuna',start,end);
+  const cbdFixed = calcFixed('CBD',start,end), rotFixed = calcFixed('Rototuna',start,end);
+  const totalNet = cbdNet+rotNet, totalFood = cbdFood+rotFood;
+  const totalLab = cbd.cost+rot.cost, totalFixed = cbdFixed+rotFixed;
+  const totalProfit = totalNet-totalFood-totalLab-totalFixed;
+
+  // Supplier breakdown
+  const supMap = {};
+  cachedInvoices.forEach(r=>{ const k=r.supplier||'Other'; supMap[k]=(supMap[k]||0)+(r.amount||0); });
+  const topSups = Object.entries(supMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v])=>k+' $'+Math.round(v)).join(', ');
+
+  // Channel breakdown
+  const ih=sumField(cachedSales,'inhouse'), ub=sumField(cachedSales,'uber');
+  const dd=sumField(cachedSales,'doordash'), bo=sumField(cachedSales,'booknorders');
+  const comm=sumField(cachedSales,'total_comm');
+
+  return `You are a smart restaurant business assistant for Saigon Noon, a Vietnamese restaurant in Hamilton, New Zealand with two branches: CBD and Rototuna.
+
+CURRENT DATA PERIOD: ${start} to ${end}
+TODAY: ${new Date().toLocaleDateString('en-NZ',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}
+
+OVERALL PERFORMANCE:
+- Total Net Sales: $${Math.round(totalNet)}
+- Food Cost: $${Math.round(totalFood)} (${totalNet?((totalFood/totalNet)*100).toFixed(1):'0'}% — target <30%)
+- Labour Cost: $${Math.round(totalLab)} (${totalNet?((totalLab/totalNet)*100).toFixed(1):'0'}% — target <35%)
+- Fixed Costs: $${Math.round(totalFixed)}
+- Net Profit: $${Math.round(totalProfit)} (${totalNet?((totalProfit/totalNet)*100).toFixed(1):'0'}% margin)
+- Commission Lost (Uber/DD): $${Math.round(comm)}
+
+CBD BRANCH:
+- Net Sales: $${Math.round(cbdNet)}
+- Food Cost: $${Math.round(cbdFood)} (${cbdNet?((cbdFood/cbdNet)*100).toFixed(1):'0'}%)
+- Labour: $${Math.round(cbd.cost)} / ${cbd.hours.toFixed(1)} hrs (${cbdNet?((cbd.cost/cbdNet)*100).toFixed(1):'0'}%)
+- Fixed: $${Math.round(cbdFixed)}
+- Profit: $${Math.round(cbdNet-cbdFood-cbd.cost-cbdFixed)}
+
+ROTOTUNA BRANCH:
+- Net Sales: $${Math.round(rotNet)}
+- Food Cost: $${Math.round(rotFood)} (${rotNet?((rotFood/rotNet)*100).toFixed(1):'0'}%)
+- Labour: $${Math.round(rot.cost)} / ${rot.hours.toFixed(1)} hrs (${rotNet?((rot.cost/rotNet)*100).toFixed(1):'0'}%)
+- Fixed: $${Math.round(rotFixed)}
+- Profit: $${Math.round(rotNet-rotFood-rot.cost-rotFixed)}
+
+SALES CHANNELS (combined):
+- In-House/Walk-in: $${Math.round(ih)} (${totalNet?((ih/(sumField(cachedSales,'gross_total')||1))*100).toFixed(1):'0'}%)
+- Uber Eats (gross): $${Math.round(ub)}
+- DoorDash (gross): $${Math.round(dd)}
+- BooknOrders: $${Math.round(bo)}
+
+TOP SUPPLIERS BY SPEND: ${topSups||'No invoice data'}
+ACTIVE STAFF: ${allStaff.filter(s=>s.active).length} (${allStaff.filter(s=>s.active&&s.branch==='CBD').length} CBD, ${allStaff.filter(s=>s.active&&s.branch==='Rototuna').length} Rototuna, ${allStaff.filter(s=>s.active&&s.branch==='Both').length} Both)
+
+BUSINESS CONTEXT:
+- Hamilton NZ restaurant, Vietnamese cuisine
+- Open: CBD Mon-Sat, Rototuna 7 days
+- Delivery platforms: Uber Eats (30% commission), DoorDash (27% commission), BooknOrders
+- Currency: NZD
+
+Be concise, practical, and specific. Use NZD. Reference actual numbers from the data above.`;
+}
+
+function updateAssistantSnapshot() {
+  const { start, end } = getDateRange();
+  const net = sumField(cachedSales,'net_total');
+  const food = sumField(cachedInvoices,'amount');
+  const { start:s, end:e } = getDateRange();
+  const lab = calcLabour('CBD',s,e).cost + calcLabour('Rototuna',s,e).cost;
+  const foodP = net?(food/net*100).toFixed(1)+'%':'—';
+  const labP  = net?(lab/net*100).toFixed(1)+'%':'—';
+  const snap = $('assistantSnapshot');
+  if (snap) snap.innerHTML =
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">'+
+    '<span style="color:var(--t3)">Period:</span><span>'+start+' → '+end+'</span>'+
+    '<span style="color:var(--t3)">Net Sales:</span><span style="color:var(--cyan)">'+nzd(net)+'</span>'+
+    '<span style="color:var(--t3)">Food Cost:</span><span style="color:'+(parseFloat(foodP)>30?'var(--red)':'var(--green)')+'">'+nzd(food)+' ('+foodP+')</span>'+
+    '<span style="color:var(--t3)">Labour:</span><span style="color:'+(parseFloat(labP)>35?'var(--red)':'var(--green)')+'">'+nzd(lab)+' ('+labP+')</span>'+
+    '<span style="color:var(--t3)">Staff:</span><span>'+allStaff.filter(s=>s.active).length+' active</span>'+
+    '</div>';
+  const badge = $('assistantContextBadge');
+  if (badge) { badge.textContent = '✅ Data loaded — '+start+' to '+end; badge.style.background='rgba(16,185,129,.1)'; }
+}
+
+function chatKeyDown(e) {
+  if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+}
+
+function appendMessage(role, text) {
+  const hist = $('chatHistory');
+  const div = document.createElement('div');
+  div.className = 'chat-msg '+role;
+  div.textContent = text;
+  hist.appendChild(div);
+  hist.scrollTop = hist.scrollHeight;
+  return div;
+}
+
+async function sendChat() {
+  const input = $('chatInput');
+  const btn = $('chatSendBtn');
+  const text = input.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  btn.disabled = true;
+  appendMessage('user', text);
+  chatMessages.push({ role:'user', content:text });
+
+  const loading = appendMessage('assistant', '⏳ Thinking…');
+  loading.classList.add('loading');
+
+  try {
+    const systemCtx = buildRestaurantContext();
+    const messages = [{ role:'user', content: systemCtx+'\n\n---\n\nYou are now the assistant. Please help with the following.' },
+                      { role:'assistant', content: 'Understood! I have your restaurant data loaded. How can I help?' },
+                      ...chatMessages.slice(-10)]; // last 10 messages for context
+
+    const r = await fetch(AI_PROXY, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:800, messages })
+    });
+    const d = await r.json();
+    const reply = d?.content?.[0]?.text || 'Sorry, no response received.';
+    loading.textContent = reply;
+    loading.classList.remove('loading');
+    chatMessages.push({ role:'assistant', content:reply });
+  } catch(e) {
+    loading.textContent = '⚠️ Error: '+e.message;
+    loading.classList.remove('loading');
+    loading.style.color='var(--red)';
+  }
+  btn.disabled = false;
+  input.focus();
+}
+
+const quickPromptTemplates = {
+  daily:    'Give me a concise daily briefing for today. What are the key numbers, any red flags, and what should I focus on today?',
+  food:     'Analyse my food cost situation. Am I within the 30% target? Which suppliers are costing the most? What can I do to reduce food cost?',
+  labour:   'Review my labour costs. Am I hitting the 35% target? Any branches that need attention? Suggest how to optimise the roster.',
+  promo:    'Based on my sales channels and performance, suggest 2-3 specific promotions I can run this week to increase revenue.',
+  strategy: 'Looking at my sales data, what are my top growth opportunities? Which channel or branch should I focus on growing?',
+  alerts:   'Check all my key metrics against targets (food cost <30%, labour <35%). Give me any alerts or warnings I should act on now.',
+  cashflow: 'Analyse my cash flow. After all costs what am I actually keeping? What are the biggest drains on cash?',
+  menu:     'Based on my supplier costs and sales mix, what menu pricing or product changes might improve my margins?',
+  compare:  'Compare CBD vs Rototuna performance. Which is doing better and why? What can each branch learn from the other?',
+  forecast: 'Based on current trends, what should I expect this week/month? What actions should I take now to hit my targets?'
+};
+
+function quickPrompt(type) {
+  $('chatInput').value = quickPromptTemplates[type] || '';
+  $('chatInput').focus();
+  sendChat();
+}
+
+function clearChat() {
+  chatMessages = [];
+  const hist = $('chatHistory');
+  hist.innerHTML = '<div class="chat-msg assistant">👋 Chat cleared! Ask me anything about your restaurant.</div>';
+}
+
 // ══════════════════ INIT ══════════════════
 document.getElementById('dateInput').type = 'date';
 document.getElementById('dateInput').value = new Date().toLocaleDateString('en-CA');
