@@ -75,6 +75,7 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 .period-btn.active { background:var(--cyan-dim); color:var(--cyan); border:1px solid var(--border2); }
 .date-input { border:1px solid var(--border); border-radius:8px; padding:5px 12px; font-size:12px; color:var(--t1); background:var(--bg); cursor:pointer; }
 .date-input:focus { outline:none; border-color:var(--cyan); }
+.date-input::-webkit-calendar-picker-indicator { filter:brightness(0) invert(1); opacity:.8; cursor:pointer; }
 .refresh-btn { background:linear-gradient(135deg,#00d4ff,#0ea5e9); color:#000; border:none; padding:6px 16px; border-radius:8px; font-size:11px; font-weight:800; cursor:pointer; letter-spacing:.5px; text-transform:uppercase; transition:all .2s; box-shadow:0 0 14px rgba(0,212,255,.3); }
 .refresh-btn:hover { box-shadow:0 0 22px rgba(0,212,255,.5); transform:translateY(-1px); }
 
@@ -230,6 +231,22 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 .add-btn { display:flex; align-items:center; gap:7px; background:var(--cyan-dim); border:1px solid var(--border2); color:var(--cyan); padding:7px 16px; border-radius:8px; font-size:11px; font-weight:800; cursor:pointer; transition:all .2s; text-transform:uppercase; letter-spacing:.6px; }
 .add-btn:hover { background:rgba(0,212,255,.15); }
 
+/* DONUT LEGEND */
+.donut-legend { margin-top:12px; }
+.donut-legend-row { display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid rgba(255,255,255,.04); font-size:12px; }
+.donut-legend-row:last-child { border-bottom:none; }
+.donut-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.donut-name { flex:1; color:var(--t2); }
+.donut-amt { color:var(--t1); font-weight:700; font-variant-numeric:tabular-nums; }
+.donut-pct { color:var(--cyan); font-weight:700; min-width:38px; text-align:right; }
+
+/* WEEK NAV */
+.week-nav { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+.week-nav-btn { background:var(--s2); border:1px solid var(--border); color:var(--t2); padding:5px 12px; border-radius:7px; font-size:13px; font-weight:700; cursor:pointer; transition:all .15s; }
+.week-nav-btn:hover { border-color:var(--cyan); color:var(--cyan); }
+.week-nav-lbl { flex:1; text-align:center; font-size:12px; font-weight:700; color:var(--cyan); }
+.week-nav-today { background:var(--cyan-dim); border:1px solid var(--border2); color:var(--cyan); padding:5px 12px; border-radius:7px; font-size:11px; font-weight:700; cursor:pointer; }
+
 /* AI */
 .ai-btns { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
 .ai-btn { padding:6px 14px; border:1px solid var(--border); border-radius:8px; background:var(--s2); color:var(--t2); font-size:11px; font-weight:700; cursor:pointer; transition:all .2s; text-transform:uppercase; letter-spacing:.5px; }
@@ -361,11 +378,11 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 <div class="section" id="sec-foodcost">
   <div class="two-col">
     <div class="card"><div class="card-title">Combined Food Cost %</div><div id="foodCostCombined"></div></div>
-    <div class="card"><div class="card-title">All Suppliers <span class="accent">Combined</span></div><div class="chart-wrap"><canvas id="supplierChart"></canvas></div></div>
+    <div class="card"><div class="card-title">All Suppliers <span class="accent">Combined</span></div><div class="chart-wrap" style="height:180px"><canvas id="supplierChart"></canvas></div><div class="donut-legend" id="supplierLegend"></div></div>
   </div>
   <div class="two-col">
-    <div class="card"><div class="card-title">🏪 CBD — Supplier Spend <span class="accent">Donut</span></div><div class="chart-wrap"><canvas id="supplierCBD"></canvas></div></div>
-    <div class="card"><div class="card-title">🏘 Rototuna — Supplier Spend <span class="accent">Donut</span></div><div class="chart-wrap"><canvas id="supplierROT"></canvas></div></div>
+    <div class="card"><div class="card-title">🏪 CBD — Supplier Spend</div><div class="chart-wrap" style="height:180px"><canvas id="supplierCBD"></canvas></div><div class="donut-legend" id="supplierCBDLegend"></div></div>
+    <div class="card"><div class="card-title">🏘 Rototuna — Supplier Spend</div><div class="chart-wrap" style="height:180px"><canvas id="supplierROT"></canvas></div><div class="donut-legend" id="supplierROTLegend"></div></div>
   </div>
   <div class="two-col" id="foodCostBranches"></div>
 </div>
@@ -377,6 +394,13 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
     <div class="kpi" style="--glow-col:#60a5fa"><div class="kpi-glow"></div><div class="kpi-icon">🏪</div><div class="kpi-lbl">Rototuna Labour</div><div class="kpi-val" id="lkpiROT">—</div><div class="kpi-sub" id="lkpiROTsub"></div><div class="kpi-badge" id="lkpiROTbadge"></div></div>
     <div class="kpi" style="--glow-col:#a855f7"><div class="kpi-glow"></div><div class="kpi-icon">⏱️</div><div class="kpi-lbl">Total Hours</div><div class="kpi-val" id="lkpiHours">—</div><div class="kpi-sub">This period</div></div>
     <div class="kpi" style="--glow-col:#10b981"><div class="kpi-glow"></div><div class="kpi-icon">👥</div><div class="kpi-lbl">Active Staff</div><div class="kpi-val" id="lkpiStaff">—</div><div class="kpi-sub">Across both stores</div></div>
+  </div>
+  <!-- Week navigation -->
+  <div class="week-nav">
+    <button class="week-nav-btn" onclick="shiftRosterWeek(-1)">&#8249; Prev</button>
+    <div class="week-nav-lbl" id="rosterWeekLbl">Week of —</div>
+    <button class="week-nav-today" onclick="goToCurrentRosterWeek()">This Week</button>
+    <button class="week-nav-btn" onclick="shiftRosterWeek(1)">Next &#8250;</button>
   </div>
   <div class="sub-tabs">
     <div class="sub-tab active" id="stab-cbd" onclick="setLabourTab('cbd')">🏪 CBD Roster</div>
@@ -528,6 +552,13 @@ let bSalesInst={}, bChannelInst={}, supplierChartInst=null, supplierCBDInst=null
 let editingStaffId=null, bankRows=null;
 let labourSubTab='cbd';
 
+// Roster week (always a Monday)
+function getMondayStr(d) {
+  const c=new Date(d); c.setDate(c.getDate()-((c.getDay()+6)%7));
+  return c.toISOString().split('T')[0];
+}
+let rosterWeekStart = getMondayStr(new Date());
+
 // ══════════════════ CLOCK ══════════════════
 function tick() {
   document.getElementById('clock').textContent =
@@ -676,7 +707,7 @@ async function loadAll() {
       sbGet('sales', 'branch=neq.null&date=gte.'+start+'&date=lte.'+end+'&order=date'),
       sbGet('invoices', 'branch=neq.null&date=gte.'+start+'&date=lte.'+end+'&order=date'),
       sbGet('staff', 'order=branch,position,name'),
-      sbGet('roster', 'order=branch,shift_num'),
+      sbGet('roster', 'week_start=eq.'+rosterWeekStart+'&order=branch,shift_num'),
     ]);
     $('liveBadge').style.background = 'rgba(16,185,129,.1)';
     $('liveText').textContent = 'Live';
@@ -686,11 +717,36 @@ async function loadAll() {
     allRoster = allRoster||[];
     allStaff  = allStaff||[];
   }
+  updateRosterWeekLabel();
   renderOverview();
   renderBranches();
   renderFoodCost();
   renderLabour();
   renderCashFlow();
+}
+
+// ══════════════════ ROSTER WEEK NAV ══════════════════
+function updateRosterWeekLabel() {
+  var d = new Date(rosterWeekStart+'T00:00:00');
+  var end = new Date(d); end.setDate(end.getDate()+6);
+  var fmt = function(dt) { return dt.toLocaleDateString('en-NZ',{day:'numeric',month:'short'}); };
+  var isNow = rosterWeekStart === getMondayStr(new Date());
+  $('rosterWeekLbl').textContent = fmt(d)+' – '+fmt(end)+(isNow?' (Current Week)':'');
+}
+async function shiftRosterWeek(dir) {
+  var d = new Date(rosterWeekStart+'T00:00:00');
+  d.setDate(d.getDate() + dir*7);
+  rosterWeekStart = d.toISOString().split('T')[0];
+  try { allRoster = await sbGet('roster','week_start=eq.'+rosterWeekStart+'&order=branch,shift_num'); }
+  catch(e) { allRoster = []; }
+  updateRosterWeekLabel();
+  renderRosterTable('CBD');
+  renderRosterTable('Rototuna');
+  renderLabour();
+}
+function goToCurrentRosterWeek() {
+  rosterWeekStart = getMondayStr(new Date());
+  shiftRosterWeek(0);
 }
 
 // ══════════════════ OVERVIEW ══════════════════
@@ -871,6 +927,26 @@ function renderBranches() {
   });
 }
 
+// Helper: render a donut legend
+function renderDonutLegend(elId, labels, values, colors) {
+  var total = values.reduce(function(a,b){return a+b;},0)||1;
+  var totalEl = document.getElementById(elId);
+  if(!totalEl) return;
+  var totalRow = '<div style="display:flex;justify-content:space-between;padding:6px 0;margin-bottom:4px;border-bottom:2px solid rgba(0,212,255,.15)">'+
+    '<span style="font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.6px">Total</span>'+
+    '<span style="font-size:13px;font-weight:800;color:var(--cyan)">'+nzd(total)+'</span></div>';
+  totalEl.innerHTML = totalRow + labels.map(function(lbl,i){
+    var val = values[i]||0;
+    var pct = (val/total*100).toFixed(1)+'%';
+    return '<div class="donut-legend-row">'+
+      '<div class="donut-dot" style="background:'+colors[i]+'"></div>'+
+      '<span class="donut-name">'+lbl+'</span>'+
+      '<span class="donut-amt">'+nzd(val)+'</span>'+
+      '<span class="donut-pct">'+pct+'</span>'+
+    '</div>';
+  }).join('');
+}
+
 // ══════════════════ FOOD COST ══════════════════
 function renderFoodCost() {
   const { start, end } = getDateRange();
@@ -914,6 +990,7 @@ function renderFoodCost() {
       tooltip:{callbacks:{label:ctx=>' '+nzd(ctx.raw)+' ('+((ctx.raw/bTotal)*100).toFixed(1)+'%)'}},
       datalabels:{color:'#fff',font:{weight:'bold',size:11},formatter:(val)=>val>0?((val/bTotal)*100).toFixed(0)+'%':'',anchor:'center',align:'center'}}}});
     if(idx===0) supplierCBDInst=ni; else supplierROTInst=ni;
+    renderDonutLegend(idx===0?'supplierCBDLegend':'supplierROTLegend', bEntries.map(e=>e[0]), bEntries.map(e=>e[1]), branchSupColors);
   });
 
   $('foodCostBranches').innerHTML = ['CBD','Rototuna'].map(b=>{
@@ -1138,7 +1215,7 @@ async function saveShiftIfChanged(inp) {
       const row = allRoster.find(r=>r.id===parseInt(rostId));
       if (row) row[day] = val;
     } else {
-      const body = { staff_id:staffId, branch, shift_num:snum, mon:'',tue:'',wed:'',thu:'',fri:'',sat:'',sun:'', [day]:val };
+      const body = { staff_id:staffId, branch, week_start:rosterWeekStart, shift_num:snum, mon:'',tue:'',wed:'',thu:'',fri:'',sat:'',sun:'', [day]:val };
       const res = await sbPost('roster', body);
       if (res && res[0]) {
         allRoster.push(res[0]);
@@ -1160,7 +1237,7 @@ async function addRosterRow(staffId, branch) {
   const existing = allRoster.filter(r=>r.staff_id===staffId && r.branch===branch);
   if (existing.length >= 2) return; // max 2 rows
   try {
-    const body = { staff_id:staffId, branch, shift_num:2, mon:'',tue:'',wed:'',thu:'',fri:'',sat:'',sun:'' };
+    const body = { staff_id:staffId, branch, week_start:rosterWeekStart, shift_num:2, mon:'',tue:'',wed:'',thu:'',fri:'',sat:'',sun:'' };
     const res = await sbPost('roster', body);
     if (res && res[0]) {
       allRoster.push(res[0]);
