@@ -555,7 +555,12 @@ let labourSubTab='cbd';
 // Roster week (always a Monday)
 function getMondayStr(d) {
   const c=new Date(d); c.setDate(c.getDate()-((c.getDay()+6)%7));
-  return c.toISOString().split('T')[0];
+  var y=c.getFullYear(), m=String(c.getMonth()+1).padStart(2,'0'), day=String(c.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+day;
+}
+function localDateStr(d) {
+  var y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+day;
 }
 let rosterWeekStart = getMondayStr(new Date());
 
@@ -727,16 +732,16 @@ async function loadAll() {
 
 // ══════════════════ ROSTER WEEK NAV ══════════════════
 function updateRosterWeekLabel() {
-  var d = new Date(rosterWeekStart+'T00:00:00');
+  var d = new Date(rosterWeekStart+'T12:00:00');
   var end = new Date(d); end.setDate(end.getDate()+6);
   var fmt = function(dt) { return dt.toLocaleDateString('en-NZ',{day:'numeric',month:'short'}); };
   var isNow = rosterWeekStart === getMondayStr(new Date());
   $('rosterWeekLbl').textContent = fmt(d)+' – '+fmt(end)+(isNow?' (Current Week)':'');
 }
 async function shiftRosterWeek(dir) {
-  var d = new Date(rosterWeekStart+'T00:00:00');
+  var d = new Date(rosterWeekStart+'T12:00:00'); // noon avoids DST/UTC offset issues
   d.setDate(d.getDate() + dir*7);
-  rosterWeekStart = d.toISOString().split('T')[0];
+  rosterWeekStart = getMondayStr(d); // ensure it stays on Monday
   try { allRoster = await sbGet('roster','week_start=eq.'+rosterWeekStart+'&order=branch,shift_num'); }
   catch(e) { allRoster = []; }
   updateRosterWeekLabel();
