@@ -332,7 +332,7 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
   <div class="nav-item" onclick="showSection('foodcost',this)">🥗 Food Cost</div>
   <div class="nav-item" onclick="showSection('labour',this)">📅 Roster</div>
   <div class="nav-item" onclick="showSection('cashflow',this)">💸 Cash Flow</div>
-  <div class="nav-item" onclick="showSection('ai',this)">🤖 AI Analysis</div>
+  <div class="nav-item" onclick="showSection('salesintel',this)">📦 Sales Intel</div>
   <div class="nav-item" onclick="showSection('assistant',this)">🧠 Assistant</div>
   <div class="nav-item" onclick="showSection('staff',this)">👤 Staff</div>
 </div>
@@ -470,37 +470,77 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 </div>
 
 <!-- AI ANALYSIS -->
-<div class="section" id="sec-ai">
-  <div class="three-col">
+<div class="section" id="sec-salesintel">
+  <div class="two-col" style="margin-bottom:0">
     <div class="card">
-      <div class="card-title">🤖 CBD Analysis</div>
-      <div class="ai-btns">
-        <button class="ai-btn" onclick="runAI('CBD','summary')">Summary</button>
-        <button class="ai-btn" onclick="runAI('CBD','food')">Food Cost</button>
-        <button class="ai-btn" onclick="runAI('CBD','labour')">Labour</button>
-        <button class="ai-btn" onclick="runAI('CBD','cashflow')">Cash Flow</button>
+      <div class="card-title">📦 Upload Weekly Sales Data
+        <span style="font-size:10px;font-weight:500;color:var(--t3);text-transform:none;letter-spacing:0">CSV from your POS</span>
       </div>
-      <div class="ai-output" id="aiCBD">Select an analysis type to get AI insights for CBD.</div>
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+        <div style="flex:1;min-width:140px">
+          <div style="font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Branch</div>
+          <div style="display:flex;gap:6px">
+            <button id="siBtnCBD" class="branch-tab cbd" onclick="setSIBranch('CBD')" style="flex:1;text-align:center;padding:8px">CBD</button>
+            <button id="siBtnROT" class="branch-tab" onclick="setSIBranch('Rototuna')" style="flex:1;text-align:center;padding:8px">Rototuna</button>
+          </div>
+        </div>
+        <div style="flex:1;min-width:140px">
+          <div style="font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Week Starting</div>
+          <input type="date" class="date-input" id="siWeekDate" style="width:100%">
+        </div>
+      </div>
+      <div class="upload-zone" id="siUploadZone" onclick="document.getElementById('siFileInput').click()" ondragover="siDragOver(event)" ondrop="siDrop(event)">
+        <div style="font-size:32px;margin-bottom:8px">📄</div>
+        <p style="font-size:13px;color:var(--t2);font-weight:600">Click or drag your POS CSV file here</p>
+        <p style="font-size:11px;color:var(--t3);margin-top:4px">Weekly sales breakdown by item</p>
+      </div>
+      <input type="file" id="siFileInput" accept=".csv,.CSV" style="display:none" onchange="siFileSelected(event)">
+      <div id="siPreview" style="display:none">
+        <div style="font-size:11px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin:14px 0 8px">CSV Preview — Map Columns</div>
+        <div id="siColumnMapper"></div>
+        <button class="refresh-btn" id="siSaveBtn" onclick="siSaveData()" style="margin-top:14px">💾 Save to Dashboard</button>
+      </div>
+      <div id="siStatus" style="margin-top:10px;font-size:12px"></div>
     </div>
+
     <div class="card">
-      <div class="card-title">🤖 Rototuna Analysis</div>
-      <div class="ai-btns">
-        <button class="ai-btn" onclick="runAI('Rototuna','summary')">Summary</button>
-        <button class="ai-btn" onclick="runAI('Rototuna','food')">Food Cost</button>
-        <button class="ai-btn" onclick="runAI('Rototuna','labour')">Labour</button>
-        <button class="ai-btn" onclick="runAI('Rototuna','cashflow')">Cash Flow</button>
+      <div class="card-title">📊 How It Works</div>
+      <div style="font-size:13px;color:var(--t2);line-height:1.8">
+        <div style="margin-bottom:12px">
+          <span style="color:var(--cyan);font-weight:700">1.</span> Run the SQL in Supabase first<br>
+          <span style="font-size:11px;color:var(--t3)">(item_sales_schema.sql)</span>
+        </div>
+        <div style="margin-bottom:12px">
+          <span style="color:var(--cyan);font-weight:700">2.</span> Export your weekly CSV from POS
+        </div>
+        <div style="margin-bottom:12px">
+          <span style="color:var(--cyan);font-weight:700">3.</span> Select branch + week, upload CSV
+        </div>
+        <div style="margin-bottom:12px">
+          <span style="color:var(--cyan);font-weight:700">4.</span> Map columns → Save
+        </div>
+        <div>
+          <span style="color:var(--cyan);font-weight:700">5.</span> AI Assistant automatically uses the data
+        </div>
+        <div class="glow-sep" style="margin:16px 0"></div>
+        <div style="font-size:11px;color:var(--t3)">
+          Once you upload sample CSVs from both POS systems, column mapping will be remembered automatically.
+        </div>
       </div>
-      <div class="ai-output" id="aiROT">Select an analysis type to get AI insights for Rototuna.</div>
     </div>
-    <div class="card">
-      <div class="card-title">🤖 Combined Analysis</div>
-      <div class="ai-btns">
-        <button class="ai-btn" onclick="runAI('Both','summary')">Summary</button>
-        <button class="ai-btn" onclick="runAI('Both','food')">Food Cost</button>
-        <button class="ai-btn" onclick="runAI('Both','labour')">Labour</button>
-        <button class="ai-btn" onclick="runAI('Both','cashflow')">Cash Flow</button>
+  </div>
+
+  <!-- Results will appear here after upload -->
+  <div id="siResults" style="display:none;margin-top:20px">
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">🏆 Top Sellers <span class="accent" id="siResultLabel"></span></div>
+        <div id="siTopSellers"></div>
       </div>
-      <div class="ai-output" id="aiBoth">Select an analysis type to get combined insights.</div>
+      <div class="card">
+        <div class="card-title">⚠️ Slow Movers</div>
+        <div id="siSlowSellers"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -657,6 +697,7 @@ function showSection(id, el) {
   document.getElementById('sec-'+id).classList.add('active');
   el.classList.add('active');
   if (id==='staff') { renderStaffProfiles(); renderFOHBOHCharts(); }
+  if (id==='salesintel') { $('siWeekDate').value=$('siWeekDate').value||getMondayStr(new Date()); siLoadResults($('siWeekDate').value); }
   if (id==='assistant') updateAssistantSnapshot();
 }
 function setPeriod(p, btn) {
@@ -1654,6 +1695,145 @@ function clearChat() {
   hist.innerHTML = '<div class="chat-msg assistant">👋 Chat cleared! Ask me anything about your restaurant.</div>';
 }
 
+
+// ══════════════════ SALES INTEL ══════════════════
+var siBranch = 'CBD';
+var siCSVRows = [];
+var siHeaders = [];
+
+function setSIBranch(b) {
+  siBranch = b;
+  document.getElementById('siBtnCBD').className = 'branch-tab '+(b==='CBD'?'cbd':'');
+  document.getElementById('siBtnROT').className = 'branch-tab '+(b==='Rototuna'?'rot':'');
+}
+
+function siDragOver(e) { e.preventDefault(); $('siUploadZone').style.borderColor='var(--cyan)'; }
+function siDrop(e) {
+  e.preventDefault(); $('siUploadZone').style.borderColor='';
+  var f = e.dataTransfer.files[0];
+  if(f) siParseFile(f);
+}
+function siFileSelected(e) { var f=e.target.files[0]; if(f) siParseFile(f); e.target.value=''; }
+
+function siParseFile(file) {
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var text = e.target.result;
+    var lines = text.split('\n').filter(function(l){return l.trim();});
+    if(lines.length < 2) { $('siStatus').innerHTML='<span style="color:var(--red)">CSV has no data rows.</span>'; return; }
+    siHeaders = lines[0].split(',').map(function(h){return h.replace(/"/g,'').trim();});
+    siCSVRows = lines.slice(1).map(function(l){
+      return l.split(',').map(function(v){return v.replace(/"/g,'').trim();});
+    }).filter(function(r){return r.length>1;});
+    renderColumnMapper();
+    $('siPreview').style.display = 'block';
+    $('siStatus').innerHTML = '<span style="color:var(--green)">✓ '+siCSVRows.length+' rows loaded from '+file.name+'</span>';
+  };
+  reader.readAsText(file);
+}
+
+function renderColumnMapper() {
+  var opts = '<option value="">— skip —</option>' + siHeaders.map(function(h,i){
+    return '<option value="'+i+'">'+h+'</option>';
+  }).join('');
+  // Auto-detect common column names
+  function findCol(keywords) {
+    var idx = siHeaders.findIndex(function(h){
+      var hl = h.toLowerCase();
+      return keywords.some(function(k){return hl.includes(k);});
+    });
+    return idx >= 0 ? idx : '';
+  }
+  var iName = findCol(['item','name','product','description','menu']);
+  var iQty  = findCol(['qty','quantity','count','sold','units']);
+  var iRev  = findCol(['total','revenue','sales','amount','gross','net']);
+  var iCat  = findCol(['category','cat','type','group','section']);
+
+  $('siColumnMapper').innerHTML =
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
+    '<div><label style="margin-top:0">Item Name *</label><select id="siColName" style="background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--t1);width:100%">'+opts.replace('value="'+iName+'"','value="'+iName+'" selected')+'</select></div>'+
+    '<div><label style="margin-top:0">Quantity Sold *</label><select id="siColQty" style="background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--t1);width:100%">'+opts.replace('value="'+iQty+'"','value="'+iQty+'" selected')+'</select></div>'+
+    '<div><label>Revenue ($) *</label><select id="siColRev" style="background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--t1);width:100%">'+opts.replace('value="'+iRev+'"','value="'+iRev+'" selected')+'</select></div>'+
+    '<div><label>Category (optional)</label><select id="siColCat" style="background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--t1);width:100%">'+opts.replace('value="'+iCat+'"','value="'+iCat+'" selected')+'</select></div>'+
+    '</div>'+
+    '<div style="margin-top:10px;background:var(--s2);border:1px solid var(--border);border-radius:8px;overflow:hidden">'+
+    '<div style="font-size:10px;color:var(--t3);padding:8px 12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border)">First 3 rows preview</div>'+
+    '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">'+
+    '<tr>'+siHeaders.map(function(h){return '<th style="padding:6px 10px;color:var(--cyan);text-align:left;border-bottom:1px solid var(--border);white-space:nowrap">'+h+'</th>';}).join('')+'</tr>'+
+    siCSVRows.slice(0,3).map(function(r){return '<tr>'+r.map(function(v){return '<td style="padding:5px 10px;color:var(--t2);border-bottom:1px solid rgba(255,255,255,.03)">'+v+'</td>';}).join('')+'</tr>';}).join('')+
+    '</table></div></div>';
+}
+
+async function siSaveData() {
+  var week = $('siWeekDate').value;
+  if(!week){$('siStatus').innerHTML='<span style="color:var(--red)">Please select a week start date.</span>';return;}
+  var iName = $('siColName').value;
+  var iQty  = $('siColQty').value;
+  var iRev  = $('siColRev').value;
+  var iCat  = $('siColCat').value;
+  if(iName===''||iQty===''||iRev===''){$('siStatus').innerHTML='<span style="color:var(--red)">Please map Item Name, Quantity and Revenue columns.</span>';return;}
+
+  var btn=$('siSaveBtn'); btn.disabled=true; btn.textContent='Saving…';
+  $('siStatus').innerHTML='<span style="color:var(--cyan)">Saving '+siCSVRows.length+' items…</span>';
+
+  // Delete existing data for this branch+week first (replace)
+  try {
+    await fetch(SB_URL+'/rest/v1/item_sales?branch=eq.'+siBranch+'&week_start=eq.'+week, {method:'DELETE',headers:SB_HDR});
+  } catch(e) {}
+
+  // Batch insert in chunks of 50
+  var rows = siCSVRows.map(function(r){
+    return {
+      branch: siBranch,
+      week_start: week,
+      item_name: r[parseInt(iName)]||'Unknown',
+      quantity: parseInt(r[parseInt(iQty)])||0,
+      revenue: parseFloat(r[parseInt(iRev)])||0,
+      category: iCat!=='' ? (r[parseInt(iCat)]||'Uncategorised') : 'Uncategorised'
+    };
+  }).filter(function(r){return r.item_name&&r.item_name!=='Unknown';});
+
+  try {
+    for(var i=0;i<rows.length;i+=50){
+      await sbPost('item_sales', rows.slice(i,i+50));
+    }
+    $('siStatus').innerHTML='<span style="color:var(--green)">✅ '+rows.length+' items saved for '+siBranch+' week of '+week+'</span>';
+    siLoadResults(week);
+    // Update assistant context badge
+    if($('assistantContextBadge')) $('assistantContextBadge').textContent='✅ Data updated — item sales included';
+  } catch(e) {
+    $('siStatus').innerHTML='<span style="color:var(--red)">Error: '+e.message+'</span>';
+  }
+  btn.disabled=false; btn.textContent='💾 Save to Dashboard';
+}
+
+async function siLoadResults(week) {
+  if(!week) return;
+  try {
+    var data = await sbGet('item_sales','branch=eq.'+siBranch+'&week_start=eq.'+week+'&order=revenue.desc&limit=100');
+    if(!data.length){$('siResults').style.display='none';return;}
+    $('siResultLabel').textContent = siBranch+' · Week of '+week;
+    $('siResults').style.display = 'block';
+
+    var renderList = function(items, colorVar, showRank) {
+      return items.map(function(item, i){
+        return '<div class="stat-row">'+
+          (showRank?'<span style="color:var(--t3);font-size:11px;width:20px">'+(i+1)+'.</span>':'')+
+          '<span class="stat-lbl" style="flex:1">'+item.item_name+(item.category&&item.category!=='Uncategorised'?' <span style="color:var(--t3);font-size:10px">('+item.category+')</span>':'')+'</span>'+
+          '<span style="color:var(--t3);font-size:11px;margin-right:10px">×'+item.quantity+'</span>'+
+          '<span class="stat-val" style="color:'+colorVar+'">'+nzd(item.revenue)+'</span>'+
+        '</div>';
+      }).join('');
+    };
+
+    $('siTopSellers').innerHTML = renderList(data.slice(0,10),'var(--green)',true) || '<div class="empty">No data</div>';
+    $('siSlowSellers').innerHTML = renderList(data.slice(-10).reverse(),'var(--orange)',false) || '<div class="empty">No data</div>';
+  } catch(e) {
+    $('siResults').style.display='none';
+  }
+}
+
+// Load results when switching to Sales Intel tab
 // ══════════════════ INIT ══════════════════
 document.getElementById('dateInput').type = 'date';
 document.getElementById('dateInput').value = new Date().toLocaleDateString('en-CA');
