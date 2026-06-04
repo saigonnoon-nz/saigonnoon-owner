@@ -1713,23 +1713,100 @@ function siDrop(e) {
   var f = e.dataTransfer.files[0];
   if(f) siParseFile(f);
 }
-function siFileSelected(e) { var f=e.target.files[0]; if(f) siParseFile(f); e.target.value=''; }
+function siFileSelected(e) { var f=e.target.files[0]; window._siAutoMap=null; if(f) siParseFile(f); e.target.value=''; }
+
+function siParseCSV(text) {
+  // Parse CSV respecting quoted fields
+  var rows = [];
+  var lines = text.split(/\r?\n/);
+  lines.forEach(function(line) {
+    if(!line.trim()) return;
+    var row = [], cur = '', inQ = false;
+    for(var i=0;i<line.length;i++) {
+      var ch=line[i];
+      if(ch==='"'){inQ=!inQ;}
+      else if(ch===','&&!inQ){row.push(cur.trim());cur='';}
+      else cur+=ch;
+    }
+    row.push(cur.trim());
+    rows.push(row);
+  });
+  return rows;
+}
+
+function siDetectFormat(rows) {
+  // Rototuna POS: row[0] starts with "Item Sales Report"
+  // row[1] starts with "Report for"
+  // row[2] is the actual header
+  if(rows[0]&&rows[0][0]&&rows[0][0].indexOf('Item Sales Report')===0) return 'rototuna';
+  return 'generic';
+}
 
 function siParseFile(file) {
   var reader = new FileReader();
   reader.onload = function(e) {
     var text = e.target.result;
-    var lines = text.split('\n').filter(function(l){return l.trim();});
-    if(lines.length < 2) { $('siStatus').innerHTML='<span style="color:var(--red)">CSV has no data rows.</span>'; return; }
-    siHeaders = lines[0].split(',').map(function(h){return h.replace(/"/g,'').trim();});
-    siCSVRows = lines.slice(1).map(function(l){
-      return l.split(',').map(function(v){return v.replace(/"/g,'').trim();});
-    }).filter(function(r){return r.length>1;});
-    renderColumnMapper();
-    $('siPreview').style.display = 'block';
-    $('siStatus').innerHTML = '<span style="color:var(--green)">✓ '+siCSVRows.length+' rows loaded from '+file.name+'</span>';
+    var rows = siParseCSV(text);
+    if(rows.length < 3) { $('siStatus').innerHTML='<span style="color:var(--red)">CSV has no data rows.</span>'; return; }
+
+    var fmt = siDetectFormat(rows);
+
+    if(fmt === 'rototuna') {
+      // Auto-map Rototuna POS format
+      // Row 0: "Item Sales Report - Total: $xxxx"
+      // Row 1: "Report for DD/MM/YYYY"
+      // Row 2: actual headers (Item, QTY, Net $, ...)
+      // Auto-extract report date
+      var dateStr = '';
+      if(rows[1]&&rows[1][0]) {
+        var m = rows[1][0].match(/(\d{2})\/(\d{2})\/(\d{4})/);
+        if(m) dateStr = m[3]+'-'+m[2]+'-'+m[1]; // convert DD/MM/YYYY to YYYY-MM-DD
+      }
+      siHeaders = rows[2];
+      siCSVRows = rows.slice(3).filter(function(r){
+        var name = r[0]||'';
+        var cat  = r[13]||'';
+        // Skip surcharges, blanks, and pure miscellaneous add-ons
+        if(!name) return false;
+        if(name.charAt(0)==='*') return false;
+        if(cat==='Miscellaneous'&&!name.match(/rice|roll|curry|pho|soup|bun|banh|noodle/i)) return false;
+        return true;
+      });
+      // Store detected date for use in save
+      $('siWeekDate').value = $('siWeekDate').value || (dateStr ? getMondayStr(new Date(dateStr+'T12:00:00')) : getMondayStr(new Date()));
+      $('siPreview').style.display = 'block';
+      $('siStatus').innerHTML = '<span style="color:var(--cyan);font-weight:700">✓ Rototuna POS format detected — '+siCSVRows.length+' items, auto-mapped!</span>'+(dateStr?'<br><span style="color:var(--t3);font-size:11px">Report date: '+dateStr+' · Week set to: '+$('siWeekDate').value+'</span>':'');
+      // Show auto-mapped preview without needing manual mapping
+      renderAutoPreview();
+    } else {
+      // Generic: first row is headers
+      siHeaders = rows[0];
+      siCSVRows = rows.slice(1).filter(function(r){return r.length>1;});
+      renderColumnMapper();
+      $('siPreview').style.display = 'block';
+      $('siStatus').innerHTML = '<span style="color:var(--green)">✓ '+siCSVRows.length+' rows loaded — please map columns below</span>';
+    }
   };
   reader.readAsText(file);
+}
+
+function renderAutoPreview() {
+  // For Rototuna auto-detected format show a clean preview
+  var iName=0, iQty=1, iRev=2, iCat=13;
+  $('siColumnMapper').innerHTML =
+    '<div style="background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.2);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--cyan)">'+
+    '✅ Auto-mapped: <strong>Item</strong> → Name &nbsp;·&nbsp; <strong>QTY</strong> → Qty &nbsp;·&nbsp; <strong>Net $</strong> → Revenue &nbsp;·&nbsp; <strong>Category</strong> → Category</div>'+
+    '<div style="font-size:11px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Top items preview</div>'+
+    '<div style="background:var(--s2);border:1px solid var(--border);border-radius:8px;overflow:hidden">'+
+    siCSVRows.slice(0,5).map(function(r){
+      return '<div style="display:flex;justify-content:space-between;padding:7px 12px;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px">'+
+        '<span style="color:var(--t1);flex:1">'+r[iName]+'</span>'+
+        '<span style="color:var(--t3);margin-right:12px">×'+r[iQty]+'</span>'+
+        '<span style="color:var(--cyan)">'+r[iRev]+'</span>'+
+      '</div>';
+    }).join('')+'</div>';
+  // Override siSaveData to use fixed column positions
+  window._siAutoMap = {name:0, qty:1, rev:2, cat:13};
 }
 
 function renderColumnMapper() {
@@ -1767,11 +1844,17 @@ function renderColumnMapper() {
 async function siSaveData() {
   var week = $('siWeekDate').value;
   if(!week){$('siStatus').innerHTML='<span style="color:var(--red)">Please select a week start date.</span>';return;}
-  var iName = $('siColName').value;
-  var iQty  = $('siColQty').value;
-  var iRev  = $('siColRev').value;
-  var iCat  = $('siColCat').value;
-  if(iName===''||iQty===''||iRev===''){$('siStatus').innerHTML='<span style="color:var(--red)">Please map Item Name, Quantity and Revenue columns.</span>';return;}
+  var iName, iQty, iRev, iCat;
+  if(window._siAutoMap) {
+    iName=window._siAutoMap.name; iQty=window._siAutoMap.qty;
+    iRev=window._siAutoMap.rev;   iCat=window._siAutoMap.cat;
+  } else {
+    iName = parseInt($('siColName').value);
+    iQty  = parseInt($('siColQty').value);
+    iRev  = parseInt($('siColRev').value);
+    iCat  = $('siColCat').value!==''?parseInt($('siColCat').value):-1;
+    if(isNaN(iName)||isNaN(iQty)||isNaN(iRev)){$('siStatus').innerHTML='<span style="color:var(--red)">Please map Item Name, Quantity and Revenue columns.</span>';return;}
+  }
 
   var btn=$('siSaveBtn'); btn.disabled=true; btn.textContent='Saving…';
   $('siStatus').innerHTML='<span style="color:var(--cyan)">Saving '+siCSVRows.length+' items…</span>';
@@ -1786,10 +1869,10 @@ async function siSaveData() {
     return {
       branch: siBranch,
       week_start: week,
-      item_name: r[parseInt(iName)]||'Unknown',
-      quantity: parseInt(r[parseInt(iQty)])||0,
-      revenue: parseFloat(r[parseInt(iRev)])||0,
-      category: iCat!=='' ? (r[parseInt(iCat)]||'Uncategorised') : 'Uncategorised'
+      item_name: r[iName]||'Unknown',
+      quantity: parseInt(r[iQty])||0,
+      revenue: parseFloat((r[iRev]||'').replace(/[^0-9.-]/g,''))||0,
+      category: iCat>=0 ? (r[iCat]||'Uncategorised') : 'Uncategorised'
     };
   }).filter(function(r){return r.item_name&&r.item_name!=='Unknown';});
 
