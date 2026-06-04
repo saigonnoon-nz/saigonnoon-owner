@@ -678,7 +678,7 @@ function setLabourTab(tab) {
 function getDateRange() {
   const val = document.getElementById('dateInput').value;
   if (period === 'daily') {
-    const d = val || new Date().toISOString().split('T')[0];
+    const d = val || localDateStr(new Date());
     return { start:d, end:d };
   }
   if (period === 'weekly') {
@@ -686,9 +686,9 @@ function getDateRange() {
       const d=new Date(); d.setDate(d.getDate()-((d.getDay()+6)%7)); return d;
     })();
     const end = new Date(base); end.setDate(end.getDate()+6);
-    return { start:base.toISOString().split('T')[0], end:end.toISOString().split('T')[0] };
+    return { start:localDateStr(base), end:localDateStr(end) };
   }
-  const ym = val ? val.slice(0,7) : new Date().toISOString().slice(0,7);
+  const ym = val ? val.slice(0,7) : localDateStr(new Date()).slice(0,7);
   const [y,m] = ym.split('-').map(Number);
   return { start:y+'-'+String(m).padStart(2,'0')+'-01', end:y+'-'+String(m).padStart(2,'0')+'-'+new Date(y,m,0).getDate() };
 }
@@ -876,7 +876,7 @@ function renderSalesChart() {
   const { start, end } = getDateRange();
   const labels=[], cbdD=[], rotD=[];
   for(let d=new Date(start);d<=new Date(end);d.setDate(d.getDate()+1)){
-    const ds=d.toISOString().split('T')[0];
+    const ds=localDateStr(d);
     labels.push(ds.slice(5));
     cbdD.push(sumField(cachedSales.filter(r=>r.date===ds&&r.branch==='CBD'),'net_total'));
     rotD.push(sumField(cachedSales.filter(r=>r.date===ds&&r.branch==='Rototuna'),'net_total'));
