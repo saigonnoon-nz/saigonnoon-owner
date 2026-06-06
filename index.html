@@ -892,7 +892,9 @@ function renderOverview() {
   const labROT = calcLabour('Rototuna',start,end).cost;
   const labour = labCBD + labROT;
   const fixed  = calcFixed('CBD',start,end) + calcFixed('Rototuna',start,end);
-  const profit = net - food - labour - fixed;
+  const gprofit = net - food - labour - fixed;
+  const tax     = gprofit > 0 ? gprofit * 0.28 : 0;
+  const profit  = gprofit - tax;
   const foodP  = net ? food/net*100 : 0;
   const labP   = net ? labour/net*100 : 0;
 
@@ -908,7 +910,7 @@ function renderOverview() {
   $('kpiLabourSub').textContent = pct(labour,net)+' of net';
   setBadge('kpiLabourBadge', labP, 35);
   $('kpiProfit').textContent = nzd(profit);
-  $('kpiProfitSub').textContent = pct(profit,net)+' margin';
+  $('kpiProfitSub').textContent = pct(profit,net)+' margin (after 28% tax)';
   const pb=$('kpiProfitBadge'); pb.textContent=(net?profit/net*100:0).toFixed(1)+'%';
   pb.className='kpi-badge '+(profit>=0?'badge-green':'badge-red');
 
@@ -1014,7 +1016,9 @@ function renderBranches() {
     const gross=sumField(s,'gross_total'), net=sumField(s,'net_total'), comm=sumField(s,'total_comm');
     const food=sumField(inv,'amount');
     const lab=calcLabour(b,start,end).cost, fixed=calcFixed(b,start,end);
-    const profit=net-food-lab-fixed;
+    const gprofit=net-food-lab-fixed;
+    const btax=gprofit>0?gprofit*0.28:0;
+    const profit=gprofit-btax;
     const foodP=net?food/net*100:0, labP=net?lab/net*100:0, fixP=net?fixed/net*100:0;
 
     // KPI cards
@@ -1022,7 +1026,7 @@ function renderBranches() {
       {icon:'💰',lbl:'Net Sales',val:nzd(net),sub:'Gross '+nzd(gross),gc:'var(--cyan)'},
       {icon:'🥗',lbl:'Food Cost',val:nzd(food),sub:foodP.toFixed(1)+'% of net',gc:foodP>30?'var(--red)':foodP>27?'var(--orange)':'var(--green)'},
       {icon:'👥',lbl:'Labour',val:nzd(lab),sub:labP.toFixed(1)+'% of net',gc:labP>35?'var(--red)':'var(--orange)'},
-      {icon:'🟢',lbl:'Net Profit',val:nzd(profit),sub:(net?profit/net*100:0).toFixed(1)+'% margin',gc:profit>=0?'var(--green)':'var(--red)'},
+      {icon:'🟢',lbl:'Net Profit',val:nzd(profit),sub:(net?profit/net*100:0).toFixed(1)+'% after tax',gc:profit>=0?'var(--green)':'var(--red)'},
     ].map(k=>'<div class="kpi" style="--glow-col:'+k.gc+'"><div class="kpi-glow"></div><div class="kpi-icon">'+k.icon+'</div><div class="kpi-lbl">'+k.lbl+'</div><div class="kpi-val">'+k.val+'</div><div class="kpi-sub">'+k.sub+'</div></div>').join('');
 
     // Sales by channel donut with % labels
@@ -1065,6 +1069,8 @@ function renderBranches() {
           '<div class="stat-row"><span class="stat-lbl">Food Cost</span><span class="stat-val '+(foodP>30?'neg':foodP>27?'warn':'pos')+'">'+nzd(food)+'</span></div>'+
           '<div class="stat-row"><span class="stat-lbl">Labour</span><span class="stat-val '+(labP>35?'neg':labP>32?'warn':'pos')+'">'+nzd(lab)+'</span></div>'+
           '<div class="stat-row"><span class="stat-lbl">Fixed Costs</span><span class="stat-val">'+nzd(fixed)+'</span></div>'+
+          '<div class="stat-row"><span class="stat-lbl">Gross Profit</span><span class="stat-val '+(gprofit>=0?'pos':'neg')+'">'+nzd(gprofit)+'</span></div>'+
+          '<div class="stat-row"><span class="stat-lbl">Tax (28%)</span><span class="stat-val neg">-'+nzd(btax)+'</span></div>'+
           '<div class="glow-sep"></div>'+
           '<div class="stat-row"><span class="stat-lbl">Net Profit</span><span class="stat-val '+(profit>=0?'pos':'neg')+'">'+nzd(profit)+'</span></div>'+
         '</div>'+
