@@ -704,7 +704,18 @@ function setPeriod(p, btn) {
   period = p;
   document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('dateInput').type = p==='monthly' ? 'month' : 'date';
+  const inp = document.getElementById('dateInput');
+  const now = new Date();
+  if (p === 'monthly') {
+    inp.type = 'month';
+    inp.value = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  } else if (p === 'weekly') {
+    inp.type = 'date';
+    inp.value = getMondayStr(now);
+  } else {
+    inp.type = 'date';
+    inp.value = localDateStr(now);
+  }
   loadAll();
 }
 function setLabourTab(tab) {
