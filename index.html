@@ -2017,7 +2017,7 @@ Rules:
 - CBD has Mon–Sat columns only; Rototuna has Mon–Sun
 - Ensure JSON is complete and valid`;
 
-    const res = await fetch(AI_URL, {
+    const res = await fetch(AI_PROXY, {
       method:'POST',
       headers:{'Authorization':'Bearer '+SB_KEY,'content-type':'application/json'},
       body: JSON.stringify({
