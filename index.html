@@ -414,7 +414,7 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
     <div class="kpi" style="--glow-col:#ef4444"><div class="kpi-glow"></div><div class="kpi-icon">🏪</div><div class="kpi-lbl">CBD Labour</div><div class="kpi-val" id="lkpiCBD">—</div><div class="kpi-sub" id="lkpiCBDsub"></div><div class="kpi-badge" id="lkpiCBDbadge"></div></div>
     <div class="kpi" style="--glow-col:#60a5fa"><div class="kpi-glow"></div><div class="kpi-icon">🏪</div><div class="kpi-lbl">Rototuna Labour</div><div class="kpi-val" id="lkpiROT">—</div><div class="kpi-sub" id="lkpiROTsub"></div><div class="kpi-badge" id="lkpiROTbadge"></div></div>
     <div class="kpi" style="--glow-col:#a855f7"><div class="kpi-glow"></div><div class="kpi-icon">⏱️</div><div class="kpi-lbl">Total Hours</div><div class="kpi-val" id="lkpiHours">—</div><div class="kpi-sub">This period</div></div>
-    <div class="kpi" style="--glow-col:#10b981"><div class="kpi-glow"></div><div class="kpi-icon">👥</div><div class="kpi-lbl">Active Staff</div><div class="kpi-val" id="lkpiStaff">—</div><div class="kpi-sub">Across both stores</div></div>
+    <div class="kpi" style="--glow-col:#00d4ff;cursor:pointer" onclick="toggleRosterScan()" title="Scan Roster from Photo"><div class="kpi-glow"></div><div class="kpi-icon">📷</div><div class="kpi-lbl">Scan Roster</div><div class="kpi-val" style="font-size:16px;letter-spacing:0">AI Upload</div><div class="kpi-sub" id="rsScanSub">Tap to open</div></div>
   </div>
   <!-- Week navigation -->
   <div class="week-nav">
@@ -424,7 +424,7 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
     <button class="week-nav-btn" onclick="shiftRosterWeek(1)">Next &#8250;</button>
   </div>
   <!-- ROSTER PHOTO SCAN -->
-  <div class="card" style="margin-bottom:16px">
+  <div class="card" style="margin-bottom:16px;display:none" id="rosterScanCard">
     <div class="card-title">📷 Scan Roster from Photo <span class="accent">AI-powered</span></div>
     <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
       <div style="flex:1;min-width:130px">
@@ -1219,7 +1219,7 @@ function renderLabour() {
   $('lkpiROTsub').textContent = rotNet ? pct(rot.cost,rotNet)+' of sales' : 'No sales data';
   setBadge('lkpiROTbadge', rotNet?rot.cost/rotNet*100:0, 35);
   $('lkpiHours').textContent = (cbd.hours+rot.hours).toFixed(1)+'h';
-  $('lkpiStaff').textContent = allStaff.filter(s=>s.active).length;
+  // Active staff KPI removed
 
   renderRosterTable('CBD');
   renderRosterTable('Rototuna');
@@ -1971,6 +1971,13 @@ async function siLoadResults(week) {
 
 // ══════════════════ ROSTER PHOTO SCAN ══════════════════
 let rsBranch = 'CBD';
+function toggleRosterScan() {
+  var card = $('rosterScanCard');
+  var isOpen = card.style.display !== 'none';
+  card.style.display = isOpen ? 'none' : 'block';
+  $('rsScanSub').textContent = isOpen ? 'Tap to open' : 'Tap to close';
+  if (!isOpen) card.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
 function setRSBranch(b) {
   rsBranch = b;
   $('rsBtnCBD').style.background = b==='CBD'?'rgba(239,68,68,.15)':'transparent';
