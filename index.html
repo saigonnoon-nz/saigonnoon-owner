@@ -423,6 +423,32 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
     <button class="week-nav-today" onclick="goToCurrentRosterWeek()">This Week</button>
     <button class="week-nav-btn" onclick="shiftRosterWeek(1)">Next &#8250;</button>
   </div>
+  <!-- ROSTER PHOTO SCAN -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title">📷 Scan Roster from Photo <span class="accent">AI-powered</span></div>
+    <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:130px">
+        <div style="font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Branch</div>
+        <div style="display:flex;gap:6px">
+          <button id="rsBtnCBD" onclick="setRSBranch('CBD')" style="flex:1;padding:7px;border-radius:8px;border:1px solid rgba(239,68,68,.4);background:rgba(239,68,68,.15);color:#ef4444;font-size:11px;font-weight:800;cursor:pointer">CBD</button>
+          <button id="rsBtnROT" onclick="setRSBranch('Rototuna')" style="flex:1;padding:7px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--t3);font-size:11px;font-weight:800;cursor:pointer">Rototuna</button>
+        </div>
+      </div>
+      <div style="flex:1;min-width:130px">
+        <div style="font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Week Starting</div>
+        <input type="date" class="date-input" id="rsWeekDate" style="width:100%">
+      </div>
+    </div>
+    <div id="rsScanZone" onclick="document.getElementById('rsFileInput').click()" ondragover="event.preventDefault()" ondrop="event.preventDefault();rsFileSelected({target:{files:event.dataTransfer.files}})" style="border:2px dashed var(--border2);border-radius:12px;padding:24px;text-align:center;cursor:pointer;transition:border-color .2s" onmouseover="this.style.borderColor='var(--cyan)'" onmouseout="this.style.borderColor='var(--border2)'">
+      <div style="font-size:32px;margin-bottom:8px">📷</div>
+      <p style="font-size:13px;color:var(--t2);font-weight:600">Click or drag roster photo here</p>
+      <p style="font-size:11px;color:var(--t3);margin-top:4px">Screenshot or photo of your weekly roster spreadsheet</p>
+    </div>
+    <input type="file" id="rsFileInput" accept="image/*" style="display:none" onchange="rsFileSelected(event)">
+    <div id="rsStatus" style="margin-top:10px;font-size:12px"></div>
+    <div id="rsPreview" style="display:none;margin-top:14px"></div>
+  </div>
+
   <div class="sub-tabs">
     <div class="sub-tab active" id="stab-cbd" onclick="setLabourTab('cbd')">🏪 CBD Roster</div>
     <div class="sub-tab" id="stab-rot" onclick="setLabourTab('rot')">🏘 Rototuna Roster</div>
@@ -1943,10 +1969,155 @@ async function siLoadResults(week) {
   }
 }
 
+// ══════════════════ ROSTER PHOTO SCAN ══════════════════
+let rsBranch = 'CBD';
+function setRSBranch(b) {
+  rsBranch = b;
+  $('rsBtnCBD').style.background = b==='CBD'?'rgba(239,68,68,.15)':'transparent';
+  $('rsBtnCBD').style.color = b==='CBD'?'#ef4444':'var(--t3)';
+  $('rsBtnCBD').style.borderColor = b==='CBD'?'rgba(239,68,68,.4)':'var(--border)';
+  $('rsBtnROT').style.background = b==='Rototuna'?'rgba(96,165,250,.15)':'transparent';
+  $('rsBtnROT').style.color = b==='Rototuna'?'#60a5fa':'var(--t3)';
+  $('rsBtnROT').style.borderColor = b==='Rototuna'?'rgba(96,165,250,.4)':'var(--border)';
+}
+
+function rsFileSelected(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  $('rsFileInput').value = '';
+  rsParseImage(file);
+}
+
+async function rsParseImage(file) {
+  $('rsStatus').innerHTML = '<span style="color:var(--cyan)">⏳ Reading roster photo…</span>';
+  $('rsPreview').style.display = 'none';
+  try {
+    const b64 = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = ev => res(ev.target.result.split(',')[1]);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+    const mediaType = file.type || 'image/jpeg';
+    const todayYear = new Date().getFullYear();
+    const prompt = `This is a weekly staff roster spreadsheet for Saigon Noon restaurant (${rsBranch} branch, ${todayYear}).
+Extract all shift data and return ONLY valid JSON — no explanation, no markdown, just the JSON object:
+{
+  "week_start": "YYYY-MM-DD",
+  "roster": [
+    {"name": "Staff Name", "position": "BOH", "shift_num": 1, "mon": "10.30-17.00", "tue": "", "wed": "16.30-closed", "thu": "", "fri": "", "sat": "", "sun": ""}
+  ]
+}
+Rules:
+- week_start is the Monday date shown in the header (e.g. "June 8" → "${todayYear}-06-08")
+- If a staff member has TWO rows, include both with shift_num 1 and 2
+- Copy shift times exactly as shown (e.g. "10.30-17.00", "16.30-closed", "9.00-closed")
+- Empty cells = "" (empty string, not null)
+- position is BOH or FOH based on the section header colour/label
+- CBD has Mon–Sat columns only; Rototuna has Mon–Sun
+- Ensure JSON is complete and valid`;
+
+    const res = await fetch(AI_URL, {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+SB_KEY,'content-type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-6',
+        max_tokens:4096,
+        messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:mediaType,data:b64}},
+          {type:'text',text:prompt}
+        ]}]
+      })
+    });
+    const raw = await res.json();
+    const text = raw.content?.[0]?.text || '';
+    let parsed;
+    try { parsed = JSON.parse(text); }
+    catch(x) { const m=text.match(/\{[\s\S]*\}/); if(m) parsed=JSON.parse(m[0]); else throw new Error('Could not parse AI response'); }
+
+    // Auto-set week date if detected
+    if (parsed.week_start && !$('rsWeekDate').value) $('rsWeekDate').value = parsed.week_start;
+    const weekStr = $('rsWeekDate').value || parsed.week_start;
+
+    rsShowPreview(parsed.roster || [], weekStr);
+    $('rsStatus').innerHTML = '<span style="color:var(--cyan);font-weight:700">✓ Detected '+( parsed.roster||[]).length+' shift rows — review below then Save</span>';
+  } catch(e) {
+    $('rsStatus').innerHTML = '<span style="color:var(--red)">Error: '+e.message+'</span>';
+  }
+}
+
+function rsMatchStaff(name) {
+  if (!name) return null;
+  const n = name.trim().toLowerCase();
+  // Exact match
+  let m = allStaff.find(s => s.name.toLowerCase() === n && (s.branch===rsBranch||s.branch==='Both'));
+  if (m) return m;
+  // First-name match
+  m = allStaff.find(s => s.name.toLowerCase().split(' ')[0] === n.split(' ')[0] && (s.branch===rsBranch||s.branch==='Both'));
+  if (m) return m;
+  // Contains match
+  m = allStaff.find(s => (s.branch===rsBranch||s.branch==='Both') && (s.name.toLowerCase().includes(n.split(' ')[0]) || n.includes(s.name.toLowerCase().split(' ')[0])));
+  return m || null;
+}
+
+let rsParsedData = [];
+function rsShowPreview(rows, weekStr) {
+  rsParsedData = rows;
+  const days = rsBranch==='CBD' ? ['mon','tue','wed','thu','fri','sat'] : ['mon','tue','wed','thu','fri','sat','sun'];
+  const dayHdr = days.map(d=>d.charAt(0).toUpperCase()+d.slice(1)).join('</th><th>');
+  let html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">';
+  html += '<tr style="color:var(--t3);text-transform:uppercase;letter-spacing:.6px"><th style="text-align:left;padding:6px 4px">Name</th><th style="padding:6px 4px">Pos</th><th style="padding:6px 4px">Shift</th><th>'+dayHdr+'</th><th>Match</th></tr>';
+  rows.forEach(function(row) {
+    var staff = rsMatchStaff(row.name);
+    var matchHtml = staff
+      ? '<span style="color:var(--green);font-weight:700">✓ '+staff.name+'</span>'
+      : '<span style="color:var(--red)">⚠ Not found</span>';
+    var cells = days.map(d=>'<td style="padding:4px;text-align:center;color:'+(row[d]?'var(--cyan)':'var(--t3)')+'">'+( row[d]||'—')+'</td>').join('');
+    html += '<tr style="border-top:1px solid var(--border)"><td style="padding:6px 4px;font-weight:700">'+row.name+'</td><td style="padding:4px;text-align:center;color:'+(row.position==='BOH'?'var(--orange)':'var(--purple)')+'">'+( row.position||'')+'</td><td style="padding:4px;text-align:center;color:var(--t3)">'+row.shift_num+'</td>'+cells+'<td style="padding:4px">'+matchHtml+'</td></tr>';
+  });
+  html += '</table></div>';
+  html += '<button class="refresh-btn" onclick="rsSaveRoster()" style="margin-top:14px;width:100%">💾 Save Roster to Dashboard</button>';
+  $('rsPreview').innerHTML = html;
+  $('rsPreview').style.display = 'block';
+}
+
+async function rsSaveRoster() {
+  const weekStr = $('rsWeekDate').value;
+  if (!weekStr) { $('rsStatus').innerHTML='<span style="color:var(--red)">Please set the week start date first</span>'; return; }
+  $('rsStatus').innerHTML = '<span style="color:var(--cyan)">⏳ Saving roster…</span>';
+  let saved=0, skipped=0;
+  try {
+    for (var i=0; i<rsParsedData.length; i++) {
+      var row = rsParsedData[i];
+      var staff = rsMatchStaff(row.name);
+      if (!staff) { skipped++; continue; }
+      var body = {
+        staff_id: staff.id, branch: rsBranch, week_start: weekStr, shift_num: row.shift_num||1,
+        mon: row.mon||'', tue: row.tue||'', wed: row.wed||'', thu: row.thu||'', fri: row.fri||'', sat: row.sat||'', sun: row.sun||''
+      };
+      // Upsert: delete existing then insert
+      await fetch(SB_URL+'/rest/v1/roster?staff_id=eq.'+staff.id+'&branch=eq.'+rsBranch+'&week_start=eq.'+weekStr+'&shift_num=eq.'+(row.shift_num||1), {method:'DELETE',headers:SB_HDR});
+      await sbPost('roster', body);
+      saved++;
+    }
+    $('rsStatus').innerHTML = '<span style="color:var(--green);font-weight:700">✅ Saved '+saved+' rows'+(skipped?' · '+skipped+' skipped (name not found)':'')+'</span>';
+    $('rsPreview').style.display = 'none';
+    // Refresh roster display
+    rosterWeekStart = weekStr;
+    allRoster = await sbGet('roster','week_start=eq.'+rosterWeekStart+'&order=branch,shift_num');
+    renderRosterTable('CBD'); renderRosterTable('Rototuna');
+    renderLabour();
+  } catch(e) {
+    $('rsStatus').innerHTML = '<span style="color:var(--red)">Error: '+e.message+'</span>';
+  }
+}
+
 // Load results when switching to Sales Intel tab
 // ══════════════════ INIT ══════════════════
 document.getElementById('dateInput').type = 'date';
 document.getElementById('dateInput').value = new Date().toLocaleDateString('en-CA');
+document.getElementById('rsWeekDate').value = getMondayStr(new Date());
+setRSBranch('CBD');
 loadAll();
 setInterval(loadAll, 30000);
 </script>
