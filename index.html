@@ -1211,10 +1211,21 @@ function renderFoodCost() {
   if(cachedFutureInvoices && cachedFutureInvoices.length>0){
     const today2 = localDateStr(new Date());
 
-    // Group by week (Monday date) and then by date within each week
+    // Tally applied vs remaining
+    var appliedCBD=0, appliedROT=0, remainingCBD=0, remainingROT=0;
+    cachedFutureInvoices.forEach(r=>{
+      var amt=Number(r.amount)||0;
+      var applied=r.date<=today2;
+      if(r.branch==='CBD'){ if(applied) appliedCBD+=amt; else remainingCBD+=amt; }
+      else { if(applied) appliedROT+=amt; else remainingROT+=amt; }
+    });
+    var appliedTotal=appliedCBD+appliedROT, remainingTotal=remainingCBD+remainingROT;
+    var grandTotal=appliedTotal+remainingTotal;
+    var appliedPct=grandTotal?Math.round(appliedTotal/grandTotal*100):0;
+
+    // Group by week
     const byWeek={};
     cachedFutureInvoices.forEach(r=>{
-      // Find Monday of that record's week
       var d=new Date(r.date+'T12:00:00');
       var dow=d.getDay(); var diff=dow===0?-6:1-dow;
       var mon=new Date(d); mon.setDate(mon.getDate()+diff);
@@ -1229,7 +1240,31 @@ function renderFoodCost() {
     const weekEntries=Object.entries(byWeek).sort((a,b)=>a[0].localeCompare(b[0]));
 
     var html='<div class="two-col" style="margin-top:0"><div class="card" style="border-color:rgba(245,158,11,.3);grid-column:1/-1">'+
-      '<div class="card-title" style="color:var(--orange)">🔀 Shared Invoice Distribution <span style="font-size:11px;font-weight:400;color:var(--t3)">(Gilmours / Drinks Supplier / OneStopPak — last 14 days)</span></div>';
+      '<div class="card-title" style="color:var(--orange)">🔀 Shared Invoice Distribution <span style="font-size:11px;font-weight:400;color:var(--t3)">(Gilmours / Drinks Supplier / OneStopPak)</span></div>'+
+
+      // Summary bar
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;padding:12px;background:rgba(0,0,0,.2);border-radius:8px">'+
+        '<div style="text-align:center">'+
+          '<div style="font-size:10px;color:var(--green);font-weight:700;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">✅ Applied</div>'+
+          '<div style="font-size:18px;font-weight:700;color:var(--green)">'+nzd(appliedTotal)+'</div>'+
+          '<div style="font-size:10px;color:var(--t3);margin-top:2px">CBD '+nzd(appliedCBD)+' · ROT '+nzd(appliedROT)+'</div>'+
+        '</div>'+
+        '<div style="text-align:center">'+
+          '<div style="font-size:10px;color:var(--orange);font-weight:700;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">⏳ Remaining</div>'+
+          '<div style="font-size:18px;font-weight:700;color:var(--orange)">'+nzd(remainingTotal)+'</div>'+
+          '<div style="font-size:10px;color:var(--t3);margin-top:2px">CBD '+nzd(remainingCBD)+' · ROT '+nzd(remainingROT)+'</div>'+
+        '</div>'+
+        '<div style="text-align:center">'+
+          '<div style="font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Total</div>'+
+          '<div style="font-size:18px;font-weight:700;color:var(--cyan)">'+nzd(grandTotal)+'</div>'+
+          '<div style="font-size:10px;color:var(--t3);margin-top:2px">'+appliedPct+'% applied</div>'+
+        '</div>'+
+      '</div>'+
+      // Progress bar
+      '<div style="height:8px;background:rgba(255,255,255,.08);border-radius:4px;margin-bottom:16px;overflow:hidden">'+
+        '<div style="height:100%;width:'+appliedPct+'%;background:var(--green);border-radius:4px;transition:width .5s"></div>'+
+      '</div>'+
+      '<div class="glow-sep" style="margin-bottom:14px"></div>';
 
     weekEntries.forEach(([monStr,wk])=>{
       var dateRows=Object.entries(wk.rows).sort((a,b)=>a[0].localeCompare(b[0]));
