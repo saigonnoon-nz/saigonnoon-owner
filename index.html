@@ -397,15 +397,44 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 
 <!-- FOOD COST -->
 <div class="section" id="sec-foodcost">
-  <div class="two-col">
-    <div class="card"><div class="card-title">Combined Food Cost %</div><div id="foodCostCombined"></div></div>
-    <div class="card"><div class="card-title">All Suppliers <span class="accent">Combined</span></div><div class="chart-wrap" style="height:180px"><canvas id="supplierChart"></canvas></div><div class="donut-legend" id="supplierLegend"></div></div>
+  <!-- Summary row -->
+  <div class="card" style="margin-bottom:0">
+    <div class="card-title">🥗 Food Cost Summary</div>
+    <div id="foodCostCombined"></div>
+    <div class="glow-sep" style="margin:14px 0 10px"></div>
+    <div class="card-title" style="font-size:11px;margin-bottom:8px">All Suppliers Combined</div>
+    <div style="display:flex;gap:12px;align-items:flex-start">
+      <div class="chart-wrap" style="height:160px;width:160px;flex-shrink:0"><canvas id="supplierChart"></canvas></div>
+      <div class="donut-legend" id="supplierLegend" style="flex:1;align-self:center"></div>
+    </div>
   </div>
+  <!-- Per-branch cards: each has stats + donut + top suppliers -->
   <div class="two-col">
-    <div class="card"><div class="card-title">🏪 CBD — Supplier Spend</div><div class="chart-wrap" style="height:180px"><canvas id="supplierCBD"></canvas></div><div class="donut-legend" id="supplierCBDLegend"></div></div>
-    <div class="card"><div class="card-title">🏘 Rototuna — Supplier Spend</div><div class="chart-wrap" style="height:180px"><canvas id="supplierROT"></canvas></div><div class="donut-legend" id="supplierROTLegend"></div></div>
+    <div class="card">
+      <div class="card-title" style="color:#ef4444">🏪 CBD</div>
+      <div id="fcCBDStats"></div>
+      <div class="glow-sep" style="margin:12px 0"></div>
+      <div style="font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Supplier Breakdown</div>
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        <div class="chart-wrap" style="height:140px;width:140px;flex-shrink:0"><canvas id="supplierCBD"></canvas></div>
+        <div class="donut-legend" id="supplierCBDLegend" style="flex:1;align-self:center"></div>
+      </div>
+      <div id="fcCBDSuppliers" style="margin-top:10px"></div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#60a5fa">🏘 Rototuna</div>
+      <div id="fcROTStats"></div>
+      <div class="glow-sep" style="margin:12px 0"></div>
+      <div style="font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Supplier Breakdown</div>
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        <div class="chart-wrap" style="height:140px;width:140px;flex-shrink:0"><canvas id="supplierROT"></canvas></div>
+        <div class="donut-legend" id="supplierROTLegend" style="flex:1;align-self:center"></div>
+      </div>
+      <div id="fcROTSuppliers" style="margin-top:10px"></div>
+    </div>
   </div>
-  <div class="two-col" id="foodCostBranches"></div>
+  <!-- Shared distribution + overflow content -->
+  <div id="foodCostBranches"></div>
 
   <!-- Item usage analysis -->
   <div class="card" style="margin-top:0">
@@ -1197,9 +1226,19 @@ function renderFoodCost() {
     tooltip:{callbacks:{label:ctx=>' '+nzd(ctx.raw)+' ('+((ctx.raw/supTotal)*100).toFixed(1)+'%)'}},
     datalabels:{color:'#fff',font:{weight:'bold',size:10},formatter:(val)=>val>0?((val/supTotal)*100).toFixed(0)+'%':'',anchor:'center',align:'center'}}}});
 
-  // Per-branch supplier donuts
+  // Per-branch cards (stats + donut + top suppliers)
   const branchSupColors=['rgba(0,212,255,.8)','rgba(168,85,247,.8)','rgba(16,185,129,.8)','rgba(245,158,11,.8)','rgba(239,68,68,.8)','rgba(96,165,250,.8)','rgba(251,191,36,.8)','rgba(52,211,153,.8)'];
-  [[supplierCBDInst,'supplierCBD','CBD'],[supplierROTInst,'supplierROT','Rototuna']].forEach(([inst,canvasId,b],idx)=>{
+  [[supplierCBDInst,'supplierCBD','CBD','fcCBDStats','fcCBDSuppliers'],[supplierROTInst,'supplierROT','Rototuna','fcROTStats','fcROTSuppliers']].forEach(([inst,canvasId,b,statsId,supsId],idx)=>{
+    const bnet=sumField(byBranch(cachedSales,b),'net_total');
+    const bfood=sumField(byBranch(cachedInvoices,b),'amount');
+    const bp=bnet?bfood/bnet*100:0;
+    const col=b==='CBD'?'#ef4444':'#60a5fa';
+    // Stats
+    $(statsId).innerHTML=
+      '<div class="stat-row"><span class="stat-lbl">Food Cost</span><span class="stat-val '+(bp>30?'neg':bp>27?'warn':'pos')+'">'+nzd(bfood)+'</span></div>'+
+      '<div class="stat-row"><span class="stat-lbl">% of Net Sales</span><span class="stat-val '+(bp>30?'neg':bp>27?'warn':'pos')+'">'+bp.toFixed(1)+'% <span style="color:var(--t3);font-size:11px">(target &lt;30%)</span></span></div>'+
+      '<div class="cbar-row" style="margin-top:8px"><span class="cbar-lbl">Food</span><div class="cbar-track" style="height:8px"><div class="cbar-fill '+(bp>30?'r':bp>27?'a':'g')+'" style="width:'+Math.min(bp*2,100)+'%;height:8px;border-radius:4px"></div></div><span class="cbar-pct">'+bp.toFixed(0)+'%</span></div>';
+    // Donut
     const bSupMap={};
     byBranch(cachedInvoices,b).forEach(r=>{ const k=r.supplier||'Other'; bSupMap[k]=(bSupMap[k]||0)+(Number(r.amount)||0); });
     const bEntries=Object.entries(bSupMap).sort((a,c)=>c[1]-a[1]).slice(0,8);
@@ -1208,31 +1247,18 @@ function renderFoodCost() {
     const ni=new Chart($(canvasId),{type:'doughnut',data:{
       labels:bEntries.map(e=>e[0]),
       datasets:[{data:bEntries.map(e=>e[1]),backgroundColor:branchSupColors,borderColor:branchSupColors.map(c=>c.replace('.8','1')),borderWidth:1,hoverOffset:6}]
-    },options:{responsive:true,maintainAspectRatio:false,cutout:'55%',
-      plugins:{legend:{position:'bottom',labels:{color:'#94a3b8',font:{size:10},padding:8,boxWidth:10}},
+    },options:{responsive:true,maintainAspectRatio:false,cutout:'60%',
+      plugins:{legend:{display:false},
       tooltip:{callbacks:{label:ctx=>' '+nzd(ctx.raw)+' ('+((ctx.raw/bTotal)*100).toFixed(1)+'%)'}},
-      datalabels:{color:'#fff',font:{weight:'bold',size:11},formatter:(val)=>val>0?((val/bTotal)*100).toFixed(0)+'%':'',anchor:'center',align:'center'}}}});
+      datalabels:{color:'#fff',font:{weight:'bold',size:10},formatter:(val)=>val>0?((val/bTotal)*100).toFixed(0)+'%':'',anchor:'center',align:'center'}}}});
     if(idx===0) supplierCBDInst=ni; else supplierROTInst=ni;
     renderDonutLegend(idx===0?'supplierCBDLegend':'supplierROTLegend', bEntries.map(e=>e[0]), bEntries.map(e=>e[1]), branchSupColors);
+    // Top supplier bars
+    const sups=Object.entries(bSupMap).sort((a,c)=>c[1]-a[1]).slice(0,6);
+    $(supsId).innerHTML=sups.map(sv=>'<div class="cbar-row"><span class="cbar-lbl" style="width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+sv[0]+'">'+sv[0]+'</span><div class="cbar-track"><div class="cbar-fill g" style="width:'+(bfood?sv[1]/bfood*100:0)+'%"></div></div><span class="cbar-pct">'+nzd(sv[1])+'</span></div>').join('');
   });
 
-  $('foodCostBranches').innerHTML = ['CBD','Rototuna'].map(b=>{
-    const bnet=sumField(byBranch(cachedSales,b),'net_total');
-    const bfood=sumField(byBranch(cachedInvoices,b),'amount');
-    const bp=bnet?bfood/bnet*100:0;
-    const col=b==='CBD'?'#ef4444':'#60a5fa';
-    const bSupMap={};
-    byBranch(cachedInvoices,b).forEach(r=>{ const k=r.supplier||'Unknown'; bSupMap[k]=(bSupMap[k]||0)+(Number(r.amount)||0); });
-    const sups=Object.entries(bSupMap).sort((a,c)=>c[1]-a[1]).slice(0,5);
-    return '<div class="card">'+
-      '<div class="branch-header" style="color:'+col+'">🏪 '+b+'</div>'+
-      '<div class="stat-row"><span class="stat-lbl">Food Cost</span><span class="stat-val '+(bp>30?'neg':bp>27?'warn':'pos')+'">'+nzd(bfood)+'</span></div>'+
-      '<div class="stat-row"><span class="stat-lbl">% of Net Sales</span><span class="stat-val '+(bp>30?'neg':'pos')+'">'+bp.toFixed(1)+'%</span></div>'+
-      '<div class="glow-sep"></div>'+
-      '<div style="font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px">Top Suppliers</div>'+
-      sups.map(sv=>'<div class="cbar-row"><span class="cbar-lbl" style="width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+sv[0]+'">'+sv[0]+'</span><div class="cbar-track"><div class="cbar-fill g" style="width:'+(bfood?sv[1]/bfood*100:0)+'%"></div></div><span class="cbar-pct">'+nzd(sv[1])+'</span></div>').join('')+
-      '</div>';
-  }).join('');
+  $('foodCostBranches').innerHTML = '';
 
   // Split invoice distribution ledger (last 14 days + future)
   if(cachedFutureInvoices && cachedFutureInvoices.length>0){
