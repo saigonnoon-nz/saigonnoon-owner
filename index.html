@@ -691,7 +691,7 @@ const SB_HDR = { 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY, 'Content-Typ
 
 // ══════════════════ STATE ══════════════════
 let period = 'daily';
-let cachedSales=[], cachedInvoices=[], allStaff=[], allRoster=[];
+let cachedSales=[], cachedInvoices=[], cachedFutureInvoices=[], allStaff=[], allRoster=[];
 let salesChartInst=null, costChartInst=null, fohbohCBDInst=null, fohbohROTInst=null;
 let bSalesInst={}, bChannelInst={}, supplierChartInst=null, supplierCBDInst=null, supplierROTInst=null;
 let editingStaffId=null, bankRows=null;
@@ -871,9 +871,11 @@ function setBadge(elId, pctVal, target) {
 async function loadAll() {
   const { start, end } = getDateRange();
   try {
-    [cachedSales, cachedInvoices, allStaff, allRoster] = await Promise.all([
+    const today = localDateStr(new Date());
+    [cachedSales, cachedInvoices, cachedFutureInvoices, allStaff, allRoster] = await Promise.all([
       sbGet('sales', 'branch=neq.null&date=gte.'+start+'&date=lte.'+end+'&order=date'),
       sbGet('invoices', 'branch=neq.null&date=gte.'+start+'&date=lte.'+end+'&order=date'),
+      sbGet('invoices', 'branch=neq.null&date=gt.'+today+'&notes=ilike.*carried+fwd*&order=date'),
       sbGet('staff', 'order=branch,position,name'),
       sbGet('roster', 'week_start=eq.'+rosterWeekStart+'&order=branch,shift_num'),
     ]);
@@ -1203,6 +1205,37 @@ function renderFoodCost() {
       sups.map(sv=>'<div class="cbar-row"><span class="cbar-lbl" style="width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+sv[0]+'">'+sv[0]+'</span><div class="cbar-track"><div class="cbar-fill g" style="width:'+(bfood?sv[1]/bfood*100:0)+'%"></div></div><span class="cbar-pct">'+nzd(sv[1])+'</span></div>').join('')+
       '</div>';
   }).join('');
+
+  // Committed future costs (carry-forward from split invoices)
+  if(cachedFutureInvoices && cachedFutureInvoices.length>0){
+    const cbdFuture = byBranch(cachedFutureInvoices,'CBD');
+    const rotFuture = byBranch(cachedFutureInvoices,'Rototuna');
+    const cbdAmt = sumField(cbdFuture,'amount');
+    const rotAmt = sumField(rotFuture,'amount');
+    const totalFuture = cbdAmt + rotAmt;
+
+    // Group by date for display
+    const byDate={};
+    cachedFutureInvoices.forEach(r=>{
+      const k=r.date; if(!byDate[k]) byDate[k]={CBD:0,Rototuna:0,suppliers:new Set()};
+      byDate[k][r.branch]=(byDate[k][r.branch]||0)+(Number(r.amount)||0);
+      if(r.supplier) byDate[k].suppliers.add(r.supplier);
+    });
+    const dateRows=Object.entries(byDate).sort((a,b)=>a[0].localeCompare(b[0]));
+
+    var html='<div class="two-col" style="margin-top:0"><div class="card" style="border-color:rgba(245,158,11,.3);grid-column:1/-1">'+
+      '<div class="card-title" style="color:var(--orange)">📅 Committed to Future Weeks <span style="font-size:11px;font-weight:400;color:var(--t3)">(from split invoices)</span></div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px">'+
+        '<div style="text-align:center"><div style="font-size:11px;color:var(--t3);margin-bottom:4px">CBD</div><div style="font-size:18px;font-weight:700;color:#ef4444">'+nzd(cbdAmt)+'</div></div>'+
+        '<div style="text-align:center"><div style="font-size:11px;color:var(--t3);margin-bottom:4px">Rototuna</div><div style="font-size:18px;font-weight:700;color:#60a5fa">'+nzd(rotAmt)+'</div></div>'+
+        '<div style="text-align:center"><div style="font-size:11px;color:var(--t3);margin-bottom:4px">Total</div><div style="font-size:18px;font-weight:700;color:var(--orange)">'+nzd(totalFuture)+'</div></div>'+
+      '</div>'+
+      '<div class="glow-sep"></div>'+
+      '<div style="font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px">By Date</div>'+
+      dateRows.map(([dt,v])=>'<div class="stat-row"><span class="stat-lbl">'+dt+' <span style="color:var(--t3);font-size:10px">['+Array.from(v.suppliers).join(', ')+']</span></span><span class="stat-val" style="display:flex;gap:16px"><span style="color:#ef4444">CBD '+nzd(v.CBD||0)+'</span><span style="color:#60a5fa">ROT '+nzd(v.Rototuna||0)+'</span></span></div>').join('')+
+    '</div></div>';
+    $('foodCostBranches').innerHTML += html;
+  }
 }
 
 // ══════════════════ LABOUR ══════════════════
