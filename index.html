@@ -353,8 +353,8 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 <!-- OVERVIEW -->
 <div class="section active" id="sec-overview">
   <div class="kpi-grid">
-    <div class="kpi" style="--glow-col:#00d4ff"><div class="kpi-glow"></div><div class="kpi-icon">💰</div><div class="kpi-lbl">Net Sales</div><div class="kpi-val" id="kpiNet">—</div><div class="kpi-sub" id="kpiNetSub"></div></div>
-    <div class="kpi" style="--glow-col:#10b981"><div class="kpi-glow"></div><div class="kpi-icon">📈</div><div class="kpi-lbl">Gross Sales</div><div class="kpi-val" id="kpiGross">—</div><div class="kpi-sub">Before commission</div></div>
+    <div class="kpi" style="--glow-col:#00d4ff"><div class="kpi-glow"></div><div class="kpi-icon">💰</div><div class="kpi-lbl">Gross Sales</div><div class="kpi-val" id="kpiNet">—</div><div class="kpi-sub" id="kpiNetSub"></div></div>
+    <div class="kpi" style="--glow-col:#10b981"><div class="kpi-glow"></div><div class="kpi-icon">📈</div><div class="kpi-lbl">Net Sales</div><div class="kpi-val" id="kpiGross">—</div><div class="kpi-sub">After commission</div></div>
     <div class="kpi" style="--glow-col:#a855f7"><div class="kpi-glow"></div><div class="kpi-icon">🧾</div><div class="kpi-lbl">Food Cost</div><div class="kpi-val" id="kpiFood">—</div><div class="kpi-sub" id="kpiFoodSub">Target &lt;30%</div><div class="kpi-badge" id="kpiFoodBadge"></div></div>
     <div class="kpi" style="--glow-col:#f59e0b"><div class="kpi-glow"></div><div class="kpi-icon">🏷️</div><div class="kpi-lbl">Commission</div><div class="kpi-val" id="kpiComm">—</div><div class="kpi-sub" id="kpiCommSub"></div></div>
     <div class="kpi" style="--glow-col:#ef4444"><div class="kpi-glow"></div><div class="kpi-icon">👥</div><div class="kpi-lbl">Labour Cost</div><div class="kpi-val" id="kpiLabour">—</div><div class="kpi-sub" id="kpiLabourSub">Target &lt;35%</div><div class="kpi-badge" id="kpiLabourBadge"></div></div>
@@ -935,9 +935,9 @@ function renderOverview() {
   const foodP  = net ? food/net*100 : 0;
   const labP   = net ? labour/net*100 : 0;
 
-  $('kpiNet').textContent = nzd(net);
-  $('kpiNetSub').textContent = 'Gross '+nzd(gross);
-  $('kpiGross').textContent = nzd(gross);
+  $('kpiNet').textContent = nzd(gross);
+  $('kpiNetSub').textContent = 'Net after comm: '+nzd(net);
+  $('kpiGross').textContent = nzd(net);
   $('kpiFood').textContent = nzd(food);
   $('kpiFoodSub').textContent = pct(food,net)+' of net sales';
   setBadge('kpiFoodBadge', foodP, 30);
@@ -1060,7 +1060,7 @@ function renderBranches() {
 
     // KPI cards
     $('bKPI_'+b).innerHTML = [
-      {icon:'💰',lbl:'Net Sales',val:nzd(net),sub:'Gross '+nzd(gross),gc:'var(--cyan)'},
+      {icon:'💰',lbl:'Gross Sales',val:nzd(gross),sub:'Net after comm: '+nzd(net),gc:'var(--cyan)'},
       {icon:'🥗',lbl:'Food Cost',val:nzd(food),sub:foodP.toFixed(1)+'% of net',gc:foodP>30?'var(--red)':foodP>27?'var(--orange)':'var(--green)'},
       {icon:'👥',lbl:'Labour',val:nzd(lab),sub:labP.toFixed(1)+'% of net',gc:labP>35?'var(--red)':'var(--orange)'},
       {icon:'🟢',lbl:'Net Profit',val:nzd(profit),sub:(net?profit/net*100:0).toFixed(1)+'% after tax',gc:profit>=0?'var(--green)':'var(--red)'},
