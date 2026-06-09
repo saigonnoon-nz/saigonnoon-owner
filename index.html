@@ -368,6 +368,48 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
     <div class="card"><div class="card-title">Sales Channels</div><div id="channelBreakdown"></div></div>
     <div class="card"><div class="card-title">Top Suppliers <span class="accent">by Spend</span></div><div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Supplier</th><th>Group</th><th>Amount</th></tr></thead><tbody id="supplierBody"></tbody></table></div></div>
   </div>
+
+  <!-- Week-on-week comparison -->
+  <div class="card" id="wowCard">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div class="card-title" style="margin-bottom:0">📊 vs Previous Period</div>
+      <div id="wowPeriodLabel" style="font-size:11px;color:var(--t3)"></div>
+    </div>
+    <div id="wowContent"></div>
+  </div>
+
+  <!-- Budget targets -->
+  <div class="card" id="budgetCard">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div class="card-title" style="margin-bottom:0">🎯 Budget Targets</div>
+      <button onclick="toggleBudgetEdit()" id="budgetEditBtn" style="background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.25);color:var(--cyan);border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer">Edit</button>
+    </div>
+    <!-- Edit panel (hidden by default) -->
+    <div id="budgetEditPanel" style="display:none;background:rgba(0,0,0,.2);border-radius:8px;padding:14px;margin-bottom:14px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">🏪 CBD</div>
+          <label style="font-size:11px;color:var(--t3);display:block;margin-bottom:3px">Weekly Revenue Target ($)</label>
+          <input id="bgt_cbd_rev" type="number" placeholder="e.g. 8000" style="width:100%;box-sizing:border-box;background:var(--bg2);border:1px solid var(--border);color:var(--t1);border-radius:6px;padding:7px 10px;font-size:13px;margin-bottom:8px">
+          <label style="font-size:11px;color:var(--t3);display:block;margin-bottom:3px">Weekly Food Cost Target ($)</label>
+          <input id="bgt_cbd_food_amt" type="number" placeholder="e.g. 2000" style="width:100%;box-sizing:border-box;background:var(--bg2);border:1px solid var(--border);color:var(--t1);border-radius:6px;padding:7px 10px;font-size:13px;margin-bottom:8px">
+          <label style="font-size:11px;color:var(--t3);display:block;margin-bottom:3px">Food Cost % Target</label>
+          <input id="bgt_cbd_food_pct" type="number" placeholder="e.g. 30" style="width:100%;box-sizing:border-box;background:var(--bg2);border:1px solid var(--border);color:var(--t1);border-radius:6px;padding:7px 10px;font-size:13px">
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:#60a5fa;text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">🏘 Rototuna</div>
+          <label style="font-size:11px;color:var(--t3);display:block;margin-bottom:3px">Weekly Revenue Target ($)</label>
+          <input id="bgt_rot_rev" type="number" placeholder="e.g. 10000" style="width:100%;box-sizing:border-box;background:var(--bg2);border:1px solid var(--border);color:var(--t1);border-radius:6px;padding:7px 10px;font-size:13px;margin-bottom:8px">
+          <label style="font-size:11px;color:var(--t3);display:block;margin-bottom:3px">Weekly Food Cost Target ($)</label>
+          <input id="bgt_rot_food_amt" type="number" placeholder="e.g. 2500" style="width:100%;box-sizing:border-box;background:var(--bg2);border:1px solid var(--border);color:var(--t1);border-radius:6px;padding:7px 10px;font-size:13px;margin-bottom:8px">
+          <label style="font-size:11px;color:var(--t3);display:block;margin-bottom:3px">Food Cost % Target</label>
+          <input id="bgt_rot_food_pct" type="number" placeholder="e.g. 30" style="width:100%;box-sizing:border-box;background:var(--bg2);border:1px solid var(--border);color:var(--t1);border-radius:6px;padding:7px 10px;font-size:13px">
+        </div>
+      </div>
+      <button onclick="saveBudgetTargets()" style="margin-top:12px;background:var(--cyan);color:#000;border:none;border-radius:6px;padding:8px 20px;font-weight:700;font-size:13px;cursor:pointer;width:100%">Save Targets</button>
+    </div>
+    <div id="budgetProgress"></div>
+  </div>
 </div>
 
 <!-- BRANCHES -->
@@ -747,7 +789,7 @@ const SB_HDR = { 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY, 'Content-Typ
 
 // ══════════════════ STATE ══════════════════
 let period = 'daily';
-let cachedSales=[], cachedInvoices=[], cachedFutureInvoices=[], allStaff=[], allRoster=[];
+let cachedSales=[], cachedInvoices=[], cachedFutureInvoices=[], cachedLastSales=[], cachedLastInvoices=[], allStaff=[], allRoster=[];
 let salesChartInst=null, costChartInst=null, fohbohCBDInst=null, fohbohROTInst=null;
 let bSalesInst={}, bChannelInst={}, supplierChartInst=null, supplierCBDInst=null, supplierROTInst=null;
 let editingStaffId=null, bankRows=null;
@@ -929,12 +971,17 @@ async function loadAll() {
   try {
     const today = localDateStr(new Date());
     const d14ago = localDateStr(new Date(Date.now()-14*864e5));
-    [cachedSales, cachedInvoices, cachedFutureInvoices, allStaff, allRoster] = await Promise.all([
-      sbGet('sales', 'branch=neq.null&date=gte.'+start+'&date=lte.'+end+'&order=date'),
-      sbGet('invoices', 'branch=neq.null&date=gte.'+start+'&date=lte.'+end+'&order=date'),
-      sbGet('invoices', 'supplier=in.(Gilmours,Drinks Supplier,OneStopPak)&date=gte.'+d14ago+'&order=date'),
-      sbGet('staff', 'order=branch,position,name'),
-      sbGet('roster', 'week_start=eq.'+rosterWeekStart+'&order=branch,shift_num'),
+    // Last period: same duration shifted back 7 days
+    const lastStart = localDateStr(new Date(new Date(start).getTime()-7*864e5));
+    const lastEnd   = localDateStr(new Date(new Date(end).getTime()-7*864e5));
+    [cachedSales, cachedInvoices, cachedFutureInvoices, cachedLastSales, cachedLastInvoices, allStaff, allRoster] = await Promise.all([
+      sbGet('sales',   'branch=neq.null&date=gte.'+start+'&date=lte.'+end+'&order=date'),
+      sbGet('invoices','branch=neq.null&date=gte.'+start+'&date=lte.'+end+'&order=date'),
+      sbGet('invoices','supplier=in.(Gilmours,Drinks Supplier,OneStopPak)&date=gte.'+d14ago+'&order=date'),
+      sbGet('sales',   'branch=neq.null&date=gte.'+lastStart+'&date=lte.'+lastEnd+'&order=date'),
+      sbGet('invoices','branch=neq.null&date=gte.'+lastStart+'&date=lte.'+lastEnd+'&order=date'),
+      sbGet('staff',   'order=branch,position,name'),
+      sbGet('roster',  'week_start=eq.'+rosterWeekStart+'&order=branch,shift_num'),
     ]);
     $('liveBadge').style.background = 'rgba(16,185,129,.1)';
     $('liveText').textContent = 'Live';
@@ -977,6 +1024,136 @@ function goToCurrentRosterWeek() {
   shiftRosterWeek(0);
 }
 
+// ══════════════════ BUDGET TARGETS ══════════════════
+function getBudgets(){return JSON.parse(localStorage.getItem('sn_budgets')||'{}');}
+function saveBudgetTargets(){
+  var b={
+    CBD:{rev:parseFloat(document.getElementById('bgt_cbd_rev').value)||0,foodAmt:parseFloat(document.getElementById('bgt_cbd_food_amt').value)||0,foodPct:parseFloat(document.getElementById('bgt_cbd_food_pct').value)||0},
+    Rototuna:{rev:parseFloat(document.getElementById('bgt_rot_rev').value)||0,foodAmt:parseFloat(document.getElementById('bgt_rot_food_amt').value)||0,foodPct:parseFloat(document.getElementById('bgt_rot_food_pct').value)||0}
+  };
+  localStorage.setItem('sn_budgets',JSON.stringify(b));
+  document.getElementById('budgetEditPanel').style.display='none';
+  document.getElementById('budgetEditBtn').textContent='Edit';
+  renderBudget();
+}
+function toggleBudgetEdit(){
+  var p=document.getElementById('budgetEditPanel');
+  var open=p.style.display!=='none';
+  if(!open){
+    var b=getBudgets();
+    ['CBD','Rototuna'].forEach(function(br){
+      var key=br==='CBD'?'cbd':'rot';
+      var bd=b[br]||{};
+      document.getElementById('bgt_'+key+'_rev').value=bd.rev||'';
+      document.getElementById('bgt_'+key+'_food_amt').value=bd.foodAmt||'';
+      document.getElementById('bgt_'+key+'_food_pct').value=bd.foodPct||'';
+    });
+  }
+  p.style.display=open?'none':'block';
+  document.getElementById('budgetEditBtn').textContent=open?'Edit':'Cancel';
+}
+function renderBudget(){
+  var b=getBudgets();
+  var html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">';
+  ['CBD','Rototuna'].forEach(function(br){
+    var col=br==='CBD'?'#ef4444':'#60a5fa';
+    var bd=b[br]||{};
+    var gross=sumField(byBranch(cachedSales,br),'gross_total');
+    var food=sumField(byBranch(cachedInvoices,br),'amount');
+    var net=sumField(byBranch(cachedSales,br),'net_total');
+    html+='<div><div style="font-size:11px;font-weight:700;color:'+col+';text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">'+br+'</div>';
+    if(!bd.rev&&!bd.foodAmt&&!bd.foodPct){html+='<div style="color:var(--t3);font-size:12px">No targets set — click Edit to add</div>';html+='</div>';return;}
+    if(bd.rev){
+      var revPct=bd.rev?Math.min(gross/bd.rev*100,150):0;
+      var revColor=gross>=bd.rev?'var(--green)':revPct>=80?'var(--orange)':'var(--red)';
+      html+='<div style="margin-bottom:10px">'+
+        '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px"><span style="color:var(--t3)">Weekly Revenue</span><span style="color:'+revColor+';font-weight:700">'+nzd(gross)+' / '+nzd(bd.rev)+'</span></div>'+
+        '<div style="height:8px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+Math.min(revPct,100)+'%;background:'+revColor+';border-radius:4px;transition:width .5s"></div></div>'+
+        '<div style="font-size:10px;color:var(--t3);margin-top:3px">'+revPct.toFixed(0)+'% of target</div>'+
+      '</div>';
+    }
+    if(bd.foodAmt){
+      var faPct=bd.foodAmt?Math.min(food/bd.foodAmt*100,150):0;
+      var faColor=food>bd.foodAmt?'var(--red)':faPct>=90?'var(--orange)':'var(--green)';
+      html+='<div style="margin-bottom:10px">'+
+        '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px"><span style="color:var(--t3)">Food Cost $</span><span style="color:'+faColor+';font-weight:700">'+nzd(food)+' / '+nzd(bd.foodAmt)+'</span></div>'+
+        '<div style="height:8px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+Math.min(faPct,100)+'%;background:'+faColor+';border-radius:4px;transition:width .5s"></div></div>'+
+        '<div style="font-size:10px;color:var(--t3);margin-top:3px">'+faPct.toFixed(0)+'% of budget spent</div>'+
+      '</div>';
+    }
+    if(bd.foodPct){
+      var fp=net?food/net*100:0;
+      var fpColor=fp>bd.foodPct?'var(--red)':fp>bd.foodPct*0.9?'var(--orange)':'var(--green)';
+      html+='<div style="margin-bottom:10px">'+
+        '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px"><span style="color:var(--t3)">Food Cost %</span><span style="color:'+fpColor+';font-weight:700">'+fp.toFixed(1)+'% / target '+bd.foodPct+'%</span></div>'+
+        '<div style="height:8px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+Math.min(fp/bd.foodPct*100,100)+'%;background:'+fpColor+';border-radius:4px;transition:width .5s"></div></div>'+
+      '</div>';
+    }
+    html+='</div>';
+  });
+  html+='</div>';
+  document.getElementById('budgetProgress').innerHTML=html;
+}
+
+// ══════════════════ WEEK-ON-WEEK ══════════════════
+function renderWoW(){
+  const {start,end}=getDateRange();
+  const lastStart=localDateStr(new Date(new Date(start).getTime()-7*864e5));
+  const lastEnd=localDateStr(new Date(new Date(end).getTime()-7*864e5));
+  document.getElementById('wowPeriodLabel').textContent=lastStart+' → '+lastEnd;
+
+  function wowRow(label,curr,last,isCost){
+    var diff=curr-last, pct=last?diff/last*100:0;
+    var up=diff>=0;
+    // For revenue: up=green. For costs: up=red
+    var color=isCost?(up?'var(--red)':'var(--green)'):(up?'var(--green)':'var(--red)');
+    var arrow=up?'▲':'▼';
+    return '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.05);align-items:center">'+
+      '<span style="font-size:12px;color:var(--t2)">'+label+'</span>'+
+      '<span style="font-size:13px;font-weight:700;color:var(--t1);text-align:right">'+nzd(curr)+'</span>'+
+      '<span style="font-size:12px;color:var(--t3);text-align:right">'+nzd(last)+'</span>'+
+      '<span style="font-size:12px;font-weight:700;color:'+color+';text-align:right">'+arrow+' '+nzd(Math.abs(diff))+' <span style="font-size:10px">('+Math.abs(pct).toFixed(1)+'%)</span></span>'+
+    '</div>';
+  }
+
+  var currGross=sumField(cachedSales,'gross_total'), lastGross=sumField(cachedLastSales,'gross_total');
+  var currNet=sumField(cachedSales,'net_total'), lastNet=sumField(cachedLastSales,'net_total');
+  var currFood=sumField(cachedInvoices,'amount'), lastFood=sumField(cachedLastInvoices,'amount');
+  var {start:s,end:e}=getDateRange();
+  var currLab=calcLabour('CBD',s,e).cost+calcLabour('Rototuna',s,e).cost;
+  var lastLab=calcLabour('CBD',lastStart,lastEnd).cost+calcLabour('Rototuna',lastStart,lastEnd).cost;
+  var currFixed=calcFixed('CBD',s,e)+calcFixed('Rototuna',s,e);
+  var lastFixed=calcFixed('CBD',lastStart,lastEnd)+calcFixed('Rototuna',lastStart,lastEnd);
+  var currProfit=currNet-currFood-currLab-currFixed, lastProfit=lastNet-lastFood-lastLab-lastFixed;
+
+  var html='<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;padding:0 0 8px;border-bottom:2px solid rgba(0,212,255,.15);margin-bottom:4px">'+
+    '<span style="font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Metric</span>'+
+    '<span style="font-size:10px;color:var(--cyan);font-weight:700;text-transform:uppercase;letter-spacing:.5px;text-align:right">This Period</span>'+
+    '<span style="font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.5px;text-align:right">Last Period</span>'+
+    '<span style="font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.5px;text-align:right">Change</span>'+
+  '</div>';
+  html+=wowRow('Gross Sales',currGross,lastGross,false);
+  html+=wowRow('Net Sales',currNet,lastNet,false);
+  html+=wowRow('Food Cost',currFood,lastFood,true);
+  html+=wowRow('Labour',currLab,lastLab,true);
+  html+=wowRow('Net Profit',currProfit,lastProfit,false);
+
+  // Per-branch revenue rows
+  html+='<div style="margin-top:12px;font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">By Branch</div>';
+  ['CBD','Rototuna'].forEach(function(b){
+    var col=b==='CBD'?'#ef4444':'#60a5fa';
+    var cg=sumField(byBranch(cachedSales,b),'gross_total'), lg=sumField(byBranch(cachedLastSales,b),'gross_total');
+    var cf=sumField(byBranch(cachedInvoices,b),'amount'), lf=sumField(byBranch(cachedLastInvoices,b),'amount');
+    html+='<div style="background:rgba(0,0,0,.15);border-radius:8px;padding:10px;margin-bottom:8px">'+
+      '<div style="font-size:11px;font-weight:700;color:'+col+';margin-bottom:8px">'+b+'</div>'+
+      wowRow('Gross Sales',cg,lg,false)+
+      wowRow('Food Cost',cf,lf,true)+
+    '</div>';
+  });
+
+  document.getElementById('wowContent').innerHTML=html;
+}
+
 // ══════════════════ OVERVIEW ══════════════════
 function renderOverview() {
   const { start, end } = getDateRange();
@@ -1014,6 +1191,8 @@ function renderOverview() {
   renderCostChart(food, labour, comm, fixed);
   renderChannels();
   renderSuppliers();
+  renderWoW();
+  renderBudget();
 }
 
 function renderSalesChart() {
