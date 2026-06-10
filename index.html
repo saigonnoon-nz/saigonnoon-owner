@@ -21,6 +21,7 @@ function tryLogin() {
   if (val === OWNER_PASS) {
     sessionStorage.setItem(SESSION_KEY, '1');
     document.getElementById('authGate').style.display = 'none';
+    updatePeriodLabel(); loadAll();
   } else {
     const err = document.getElementById('authErr');
     err.textContent = 'Incorrect password';
@@ -34,6 +35,9 @@ document.addEventListener('keydown', function(e) {
   if (gate && gate.style.display !== 'none' && e.key === 'Enter') tryLogin();
 });
 checkAuth();
+document.addEventListener('DOMContentLoaded', function(){
+  if(sessionStorage.getItem(SESSION_KEY)==='1'){ updatePeriodLabel(); loadAll(); }
+});
 </script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
