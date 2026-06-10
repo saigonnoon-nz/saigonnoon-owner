@@ -1548,33 +1548,18 @@ async function updateAssistantSnapshotFull(){
   updateAssistantSnapshot();
   // Compose full context
   assistantContext=
-    'RESTAURANT: Saigon Noon, Vietnamese, Hamilton NZ. Two branches: CBD and Rototuna.
-'+
-    'TODAY: '+today+' | Current view: '+start+(start!==end?' to '+end:'')+' ('+period+')
-
-'+
-    'MONTHLY PERFORMANCE:
-'+
-    '  '+monthSummary(salesTM,invTM,'This month (so far)')+'
-'+
-    '  '+monthSummary(salesLM,invLM,'Last month')+'
-'+
-    '  '+monthSummary(salesP2,invP2,'2 months ago')+'
-
-'+
-    'LAST 90 DAYS:
-'+
-    '  CBD total: revenue '+nzd(cbdNet90)+', food cost '+nzd(cbdFood90)+' ('+(cbdNet90?(cbdFood90/cbdNet90*100).toFixed(1):'0')+'%)
-'+
-    '  Rototuna total: revenue '+nzd(rotNet90)+', food cost '+nzd(rotFood90)+' ('+(rotNet90?(rotFood90/rotNet90*100).toFixed(1):'0')+'%)
-'+
-    '  Sales channels (net): '+chStr+'
-'+
-    '  Top suppliers: '+supStr+'
-
-'+
-    'CURRENT PERIOD ('+start+(start!==end?' to '+end:'')+'):
-'+
+    'RESTAURANT: Saigon Noon, Vietnamese, Hamilton NZ. Two branches: CBD and Rototuna.\n'+
+    'TODAY: '+today+' | Current view: '+start+(start!==end?' to '+end:'')+' ('+period+')\n\n'+
+    'MONTHLY PERFORMANCE:\n'+
+    '  '+monthSummary(salesTM,invTM,'This month (so far)')+'\n'+
+    '  '+monthSummary(salesLM,invLM,'Last month')+'\n'+
+    '  '+monthSummary(salesP2,invP2,'2 months ago')+'\n\n'+
+    'LAST 90 DAYS:\n'+
+    '  CBD total: revenue '+nzd(cbdNet90)+', food cost '+nzd(cbdFood90)+' ('+(cbdNet90?(cbdFood90/cbdNet90*100).toFixed(1):'0')+'%)\n'+
+    '  Rototuna total: revenue '+nzd(rotNet90)+', food cost '+nzd(rotFood90)+' ('+(rotNet90?(rotFood90/rotNet90*100).toFixed(1):'0')+'%)\n'+
+    '  Sales channels (net): '+chStr+'\n'+
+    '  Top suppliers: '+supStr+'\n\n'+
+    'CURRENT PERIOD ('+start+(start!==end?' to '+end:'')+'):\n'+
     assistantContext;
   assistantContext+=itemsCtx;
   $('assistantContextBadge').textContent='✔ Full data loaded (90 days + ingredients)';
