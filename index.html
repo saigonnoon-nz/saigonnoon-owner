@@ -1528,6 +1528,24 @@ async function updateAssistantSnapshotFull(){
   const supMap={};
   inv90.forEach(r=>{if(r.supplier) supMap[r.supplier]=(supMap[r.supplier]||0)+(Number(r.amount)||0);});
   const supStr=Object.entries(supMap).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([s,v])=>s+' '+nzd(v)).join(', ')||'none';
+  // Weekly supplier spend by branch (this week + last week)
+  const lastWeekStartW=localDateStr(new Date(new Date(weekStart).getTime()-7*864e5));
+  const lastWeekEndW=localDateStr(new Date(new Date(weekStart).getTime()-864e5));
+  function branchSupplierSummary(invArr,branch){
+    const m={};
+    invArr.filter(r=>r.branch===branch&&r.supplier).forEach(r=>{m[r.supplier]=(m[r.supplier]||0)+(Number(r.amount)||0);});
+    return Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([s,v])=>s+': '+nzd(v)).join(', ')||'no purchases';
+  }
+  const invThisWeek=inv90.filter(r=>r.date>=weekStart&&r.date<=today);
+  const invLastWeek=inv90.filter(r=>r.date>=lastWeekStartW&&r.date<=lastWeekEndW);
+  const twCBD=branchSupplierSummary(invThisWeek,'CBD');
+  const twROT=branchSupplierSummary(invThisWeek,'Rototuna');
+  const lwCBD=branchSupplierSummary(invLastWeek,'CBD');
+  const lwROT=branchSupplierSummary(invLastWeek,'Rototuna');
+  const twCBDtotal=sumField(invThisWeek.filter(r=>r.branch==='CBD'),'amount');
+  const twROTtotal=sumField(invThisWeek.filter(r=>r.branch==='Rototuna'),'amount');
+  const lwCBDtotal=sumField(invLastWeek.filter(r=>r.branch==='CBD'),'amount');
+  const lwROTtotal=sumField(invLastWeek.filter(r=>r.branch==='Rototuna'),'amount');
   // Sales by channel last 90 days
   const chStr=salesByChannel(sales90).map(([n,v])=>n+' '+nzd(v)).join(', ')||'no data';
   // Branch totals last 90 days
@@ -1546,6 +1564,12 @@ async function updateAssistantSnapshotFull(){
     '  '+monthSummary(salesTM,invTM,'This month (so far)')+'\n'+
     '  '+monthSummary(salesLM,invLM,'Last month')+'\n'+
     '  '+monthSummary(salesP2,invP2,'2 months ago')+'\n\n'+
+    'THIS WEEK SUPPLIER SPEND BY BRANCH ('+weekStart+' to '+today+'):\n'+
+    '  CBD total: '+nzd(twCBDtotal)+' | '+twCBD+'\n'+
+    '  Rototuna total: '+nzd(twROTtotal)+' | '+twROT+'\n\n'+
+    'LAST WEEK SUPPLIER SPEND BY BRANCH ('+lastWeekStartW+' to '+lastWeekEndW+'):\n'+
+    '  CBD total: '+nzd(lwCBDtotal)+' | '+lwCBD+'\n'+
+    '  Rototuna total: '+nzd(lwROTtotal)+' | '+lwROT+'\n\n'+
     'LAST 90 DAYS:\n'+
     '  CBD total: revenue '+nzd(cbdNet90)+', food cost '+nzd(cbdFood90)+' ('+(cbdNet90?(cbdFood90/cbdNet90*100).toFixed(1):'0')+'%)\n'+
     '  Rototuna total: revenue '+nzd(rotNet90)+', food cost '+nzd(rotFood90)+' ('+(rotNet90?(rotFood90/rotNet90*100).toFixed(1):'0')+'%)\n'+
@@ -1614,7 +1638,7 @@ async function sendChat(){
   const inp=$('chatInput'), q=inp.value.trim(); if(!q) return;
   inp.value=''; chatHistory.push({role:'user',content:q}); appendMsg('user',q); appendMsg('assistant','Thinking…','loading'); $('chatSendBtn').disabled=true;
   const ctx=assistantContext||'No restaurant data loaded yet — ask Erik to refresh the page.';
-  const instruction='You are a trusted business advisor for Erik, owner of Saigon Noon (Vietnamese restaurant, Hamilton NZ, two branches: CBD and Rototuna). Think and reason like an experienced chef and restaurant owner — you understand ingredient costs, yield, waste, portion control, and supplier pricing. You have FULL access to his live data below.\n\nIMPORTANT — about ingredient data: invoice line items show item names and quantities. Per-item dollar amounts may be $0 because prices are stored at the invoice level, not per line. When individual item prices are $0, use the supplier totals and quantities together to reason about cost — e.g. if Service Food billed $321 and the main items from them are beef and chicken, you can estimate costs. Always be transparent if you are estimating. Never say you don\'t have access to the data.\n\nLIVE RESTAURANT DATA:\n'+ctx+'\n\nTone: Talk like a knowledgeable friend who runs restaurants. Conversational, no headers, no bullet points, no tables unless Erik asks. Use NZD ($). Be specific — name actual ingredients, quantities, and suppliers. If something looks off, say so plainly.';
+  const instruction='You are a trusted business advisor for Erik, owner of Saigon Noon (Vietnamese restaurant, Hamilton NZ, two branches: CBD and Rototuna). Think like an experienced chef and restaurant owner who knows ingredient costs, yield, waste, and supplier pricing.\n\nYou have FULL access to Erik\'s live data below. The data includes a section called WEEKLY SUPPLIER SPEND BY BRANCH which shows exactly how much each branch spent with each supplier this week and last week — use those numbers directly to answer branch-specific supplier questions.\n\nNote on ingredient line items: quantities are accurate but per-item dollar amounts may be $0 because prices are at invoice level. Use the branch supplier totals (which DO have correct dollar amounts) for cost questions.\n\nLIVE RESTAURANT DATA:\n\'+ctx+\'\n\nFORMATTING RULES — strictly follow these:\n- Plain text only. No markdown. No **bold**, no *italic*, no # headers, no bullet points, no dashes, no tables.\n- Write in short natural sentences like a person talking, not a report.\n- Lead with the direct answer and the actual number. Never start with a caveat or explanation.\n- If you know the number, just say it. Example: \"CBD spent $180 with Service Food this week.\" Then add context if useful.\n- Keep it under 4 sentences unless Erik asks for more detail.'
   const apiMessages=[{role:'user',content:instruction},{role:'assistant',content:'Got it, I have the live data for Saigon Noon. What would you like to know?'},...chatHistory];
   try{
     const r=await fetch(AI_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:apiMessages,max_tokens:600})});
