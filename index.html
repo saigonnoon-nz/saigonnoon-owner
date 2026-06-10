@@ -43,17 +43,17 @@ checkAuth();
   --s2: #111827;
   --s3: #1a2236;
   --border: rgba(100,116,139,.2);
-  --border2: rgba(245,158,11,.35);
-  --amber: #f59e0b;
-  --amber-dim: rgba(245,158,11,.08);
-  --amber-glow: rgba(245,158,11,.25);
+  --border2: rgba(148,163,184,.3);
+  --amber: #94a3b8;
+  --amber-dim: rgba(148,163,184,.08);
+  --amber-glow: rgba(148,163,184,.15);
   --cbd: #3b82f6;
   --cbd-dim: rgba(59,130,246,.12);
   --roto: #34d399;
   --roto-dim: rgba(52,211,153,.12);
   --green: #34d399;
   --red: #f87171;
-  --orange: #f59e0b;
+  --orange: #94a3b8;
   --purple: #a855f7;
   --t1: #f1f5f9;
   --t2: #94a3b8;
@@ -62,7 +62,7 @@ checkAuth();
 body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--t1); min-height:100vh; }
 .header { background:rgba(15,23,42,.96); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); padding:0 24px; height:56px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
 .logo-area { display:flex; align-items:center; gap:10px; }
-.logo-icon { width:34px; height:34px; border-radius:9px; background:linear-gradient(135deg,#f59e0b,#d97706); box-shadow:0 0 14px rgba(245,158,11,.4); display:flex; align-items:center; justify-content:center; font-size:16px; }
+.logo-icon { width:34px; height:34px; border-radius:9px; background:linear-gradient(135deg,#94a3b8,#64748b); box-shadow:none; display:flex; align-items:center; justify-content:center; font-size:16px; }
 .logo-text { font-size:15px; font-weight:800; letter-spacing:-.3px; }
 .logo-text span { color:var(--amber); }
 .logo-sub { font-size:9px; color:var(--t3); text-transform:uppercase; letter-spacing:1.5px; margin-top:1px; }
@@ -88,8 +88,8 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 .period-arrow { background:var(--bg); border:1px solid var(--border); color:var(--t2); width:28px; height:28px; border-radius:6px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:14px; transition:all .15s; line-height:1; user-select:none; }
 .period-arrow:hover { border-color:var(--amber); color:var(--amber); }
 .period-label { font-size:12px; font-weight:700; color:var(--t1); min-width:160px; text-align:center; padding:4px 8px; background:var(--bg); border:1px solid var(--border); border-radius:6px; }
-.refresh-btn { background:linear-gradient(135deg,#f59e0b,#d97706); color:#000; border:none; padding:5px 14px; border-radius:7px; font-size:11px; font-weight:800; cursor:pointer; letter-spacing:.5px; text-transform:uppercase; transition:all .2s; box-shadow:0 0 12px rgba(245,158,11,.25); margin-left:auto; }
-.refresh-btn:hover { box-shadow:0 0 20px rgba(245,158,11,.45); transform:translateY(-1px); }
+.refresh-btn { background:linear-gradient(135deg,#94a3b8,#64748b); color:#0f172a; border:none; padding:5px 14px; border-radius:7px; font-size:11px; font-weight:800; cursor:pointer; letter-spacing:.5px; text-transform:uppercase; transition:all .2s; box-shadow:none; margin-left:auto; }
+.refresh-btn:hover { box-shadow:0 0 20px rgba(148,163,184,.45); transform:translateY(-1px); }
 .main { padding:20px 24px; max-width:1440px; margin:0 auto; }
 .section { display:none; }
 .section.active { display:block; }
@@ -127,7 +127,7 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 .intel-refresh:hover { background:var(--amber-dim); }
 .kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(185px,1fr)); gap:12px; margin-bottom:20px; }
 .kpi { background:var(--s1); border:1px solid var(--border); border-radius:13px; padding:16px 18px; position:relative; overflow:hidden; transition:border-color .2s; }
-.kpi:hover { border-color:rgba(245,158,11,.2); }
+.kpi:hover { border-color:rgba(148,163,184,.2); }
 .kpi-glow { position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg,transparent,var(--glow-col),transparent); }
 .kpi-icon { font-size:20px; margin-bottom:8px; }
 .kpi-lbl { font-size:9px; color:var(--t3); font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:5px; }
@@ -136,7 +136,7 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 .kpi-badge { position:absolute; top:14px; right:14px; font-size:10px; font-weight:800; padding:2px 7px; border-radius:5px; text-transform:uppercase; letter-spacing:.4px; }
 .badge-green { background:rgba(52,211,153,.15); color:var(--green); border:1px solid rgba(52,211,153,.25); }
 .badge-red   { background:rgba(248,113,113,.15); color:var(--red); border:1px solid rgba(248,113,113,.25); }
-.badge-warn  { background:rgba(245,158,11,.15); color:var(--amber); border:1px solid rgba(245,158,11,.25); }
+.badge-warn  { background:rgba(148,163,184,.15); color:var(--amber); border:1px solid rgba(148,163,184,.25); }
 .pl-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:20px; }
 .pl-card { background:var(--s1); border:1px solid var(--border); border-radius:14px; padding:20px; text-align:center; position:relative; overflow:hidden; }
 .pl-card-top { height:2px; position:absolute; top:0; left:0; right:0; }
@@ -163,7 +163,7 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 .cbar-track { flex:1; background:rgba(255,255,255,.05); border-radius:3px; height:5px; overflow:hidden; }
 .cbar-fill { height:100%; border-radius:3px; transition:width .7s; }
 .cbar-fill.g { background:linear-gradient(90deg,var(--green),#059669); }
-.cbar-fill.a { background:linear-gradient(90deg,var(--amber),#d97706); }
+.cbar-fill.a { background:linear-gradient(90deg,var(--amber),#64748b); }
 .cbar-fill.r { background:linear-gradient(90deg,var(--red),#dc2626); }
 .cbar-pct { font-size:10px; color:var(--t3); width:34px; text-align:right; font-weight:700; }
 .ch-pill { display:flex; align-items:center; gap:8px; padding:7px 10px; background:var(--s2); border:1px solid var(--border); border-radius:8px; margin-bottom:5px; }
@@ -176,13 +176,13 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 .tbl th { padding:8px 10px; text-align:left; font-size:10px; font-weight:700; color:var(--t3); text-transform:uppercase; letter-spacing:.8px; border-bottom:1px solid var(--border); }
 .tbl td { padding:8px 10px; border-bottom:1px solid rgba(255,255,255,.04); color:var(--t1); }
 .tbl tr:last-child td { border-bottom:none; }
-.tbl tr:hover td { background:rgba(245,158,11,.02); }
+.tbl tr:hover td { background:rgba(148,163,184,.02); }
 .pill { font-size:10px; padding:2px 7px; border-radius:4px; font-weight:700; display:inline-block; }
 .pill-cbd  { background:rgba(59,130,246,.15); color:var(--cbd); }
 .pill-rot  { background:rgba(52,211,153,.15); color:var(--roto); }
 .pill-both { background:rgba(168,85,247,.15); color:#a855f7; }
 .pill-foh  { background:rgba(168,85,247,.15); color:#a855f7; }
-.pill-boh  { background:rgba(245,158,11,.15); color:var(--amber); }
+.pill-boh  { background:rgba(148,163,184,.15); color:var(--amber); }
 .pill-on   { background:rgba(52,211,153,.15); color:var(--green); }
 .pill-off  { background:rgba(100,116,139,.15); color:var(--t2); }
 .branch-header { font-size:13px; font-weight:800; margin-bottom:14px; }
@@ -191,7 +191,7 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 .sub-tab.active { background:var(--amber-dim); border-color:var(--border2); color:var(--amber); }
 .staff-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; }
 .staff-card { background:var(--s2); border:1px solid var(--border); border-radius:12px; padding:16px; transition:border-color .2s; cursor:pointer; }
-.staff-card:hover { border-color:rgba(245,158,11,.3); }
+.staff-card:hover { border-color:rgba(148,163,184,.3); }
 .staff-card-top { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
 .staff-avatar { width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:800; flex-shrink:0; }
 .staff-name { font-size:13px; font-weight:800; color:var(--t1); }
@@ -205,15 +205,15 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 .roster-tbl th.name-col { text-align:left; color:var(--t3); width:110px; }
 .roster-tbl td { padding:3px 4px; border:1px solid rgba(30,45,64,.8); text-align:center; vertical-align:middle; }
 .roster-tbl td.name-col { text-align:left; padding:4px 10px; border-right:2px solid var(--border); }
-.roster-tbl tr:hover td { background:rgba(245,158,11,.02); }
+.roster-tbl tr:hover td { background:rgba(148,163,184,.02); }
 .roster-tbl .section-hdr td { background:var(--s2); padding:6px 10px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:1px; border-top:2px solid var(--border); }
 .roster-tbl .section-hdr-boh td { color:var(--amber); }
 .roster-tbl .section-hdr-foh td { color:#a855f7; }
-.roster-tbl .total-row td { background:rgba(245,158,11,.05); font-weight:700; color:var(--amber); font-size:11px; border-top:2px solid rgba(245,158,11,.2); }
+.roster-tbl .total-row td { background:rgba(148,163,184,.05); font-weight:700; color:var(--amber); font-size:11px; border-top:2px solid rgba(148,163,184,.2); }
 .roster-tbl .total-row td.name-col { color:var(--t3); }
 .shift-input { background:transparent; border:1px solid transparent; border-radius:5px; padding:4px 5px; font-size:12px; color:var(--t1); text-align:center; width:100%; min-width:90px; font-family:inherit; transition:all .15s; outline:none; }
 .shift-input:hover { border-color:var(--border); background:var(--s2); }
-.shift-input:focus { border-color:var(--amber); background:var(--s3); box-shadow:0 0 0 2px rgba(245,158,11,.12); }
+.shift-input:focus { border-color:var(--amber); background:var(--s3); box-shadow:0 0 0 2px rgba(148,163,184,.12); }
 .shift-input.has-shift { color:var(--t1); font-weight:600; }
 .shift-input.no-shift { color:var(--t3); }
 .shift-input.closed { color:var(--amber); font-weight:600; }
@@ -241,7 +241,7 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 .form-group input:focus,.form-group select:focus { border-color:var(--amber); }
 .form-group select option { background:var(--s2); }
 .modal-btns { display:flex; gap:8px; margin-top:18px; justify-content:flex-end; }
-.btn-primary { background:linear-gradient(135deg,#f59e0b,#d97706); color:#000; border:none; padding:8px 18px; border-radius:8px; font-size:12px; font-weight:800; cursor:pointer; }
+.btn-primary { background:linear-gradient(135deg,#94a3b8,#64748b); color:#0f172a; border:none; padding:8px 18px; border-radius:8px; font-size:12px; font-weight:800; cursor:pointer; }
 .btn-secondary { background:var(--s2); border:1px solid var(--border); color:var(--t2); padding:8px 18px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; }
 .btn-danger { background:rgba(248,113,113,.1); border:1px solid rgba(248,113,113,.3); color:var(--red); padding:8px 18px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; margin-right:auto; }
 .add-btn { display:flex; align-items:center; gap:6px; background:var(--amber-dim); border:1px solid var(--border2); color:var(--amber); padding:6px 14px; border-radius:8px; font-size:11px; font-weight:800; cursor:pointer; text-transform:uppercase; letter-spacing:.5px; }
@@ -263,7 +263,7 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 .chat-input-row { display:flex; gap:8px; padding:10px; border-top:1px solid var(--border); background:var(--s1); border-radius:0 0 14px 14px; }
 .chat-input { flex:1; background:var(--s2); border:1px solid var(--border); border-radius:8px; padding:9px 12px; font-size:13px; color:var(--t1); outline:none; resize:none; font-family:inherit; transition:border .15s; }
 .chat-input:focus { border-color:var(--amber); }
-.chat-send { background:linear-gradient(135deg,#f59e0b,#d97706); color:#000; border:none; border-radius:8px; padding:9px 16px; font-size:13px; font-weight:800; cursor:pointer; white-space:nowrap; }
+.chat-send { background:linear-gradient(135deg,#94a3b8,#64748b); color:#000; border:none; border-radius:8px; padding:9px 16px; font-size:13px; font-weight:800; cursor:pointer; white-space:nowrap; }
 .quick-prompts { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:14px; }
 .qp-btn { padding:6px 12px; border:1px solid var(--border); border-radius:18px; background:var(--s2); color:var(--t2); font-size:11px; font-weight:700; cursor:pointer; transition:all .15s; }
 .qp-btn:hover { border-color:var(--amber); color:var(--amber); background:var(--amber-dim); }
@@ -286,17 +286,17 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 <!-- AUTH GATE -->
 <div id="authGate" style="display:none;position:fixed;inset:0;background:#0f172a;z-index:9999;flex-direction:column;align-items:center;justify-content:center">
   <div style="text-align:center;margin-bottom:28px">
-    <div style="width:52px;height:52px;border-radius:13px;background:linear-gradient(135deg,#f59e0b,#d97706);box-shadow:0 0 22px rgba(245,158,11,.5);display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 12px">🍜</div>
-    <div style="font-size:20px;font-weight:800;color:#f1f5f9">Saigon<span style="color:#f59e0b">Noon</span></div>
+    <div style="width:52px;height:52px;border-radius:13px;background:linear-gradient(135deg,#94a3b8,#64748b);box-shadow:0 0 22px rgba(148,163,184,.5);display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 12px">🍜</div>
+    <div style="font-size:20px;font-weight:800;color:#f1f5f9">Saigon<span style="color:#94a3b8">Noon</span></div>
     <div style="font-size:10px;color:#475569;text-transform:uppercase;letter-spacing:1.5px;margin-top:3px">Owner Command Center</div>
   </div>
-  <div style="background:#1e293b;border:1px solid rgba(245,158,11,.25);border-radius:16px;padding:28px;width:300px;max-width:90vw;box-shadow:0 0 40px rgba(245,158,11,.1)">
+  <div style="background:#1e293b;border:1px solid rgba(148,163,184,.25);border-radius:16px;padding:28px;width:300px;max-width:90vw;box-shadow:0 0 40px rgba(148,163,184,.1)">
     <div style="font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.8px;margin-bottom:7px">Password</div>
     <input id="authPwInput" type="password" placeholder="Enter password…"
-      style="width:100%;background:#111827;border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:11px 13px;font-size:14px;color:#f1f5f9;outline:none;margin-bottom:10px"
-      onfocus="this.style.borderColor='#f59e0b'" onblur="this.style.borderColor='rgba(245,158,11,.2)'">
+      style="width:100%;background:#111827;border:1px solid rgba(148,163,184,.2);border-radius:8px;padding:11px 13px;font-size:14px;color:#f1f5f9;outline:none;margin-bottom:10px"
+      onfocus="this.style.borderColor='#94a3b8'" onblur="this.style.borderColor='rgba(148,163,184,.2)'">
     <button onclick="tryLogin()"
-      style="width:100%;background:linear-gradient(135deg,#f59e0b,#d97706);color:#000;border:none;padding:11px;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;text-transform:uppercase;letter-spacing:.5px">
+      style="width:100%;background:linear-gradient(135deg,#94a3b8,#64748b);color:#000;border:none;padding:11px;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;text-transform:uppercase;letter-spacing:.5px">
       Enter Dashboard
     </button>
     <div id="authErr" style="color:#f87171;font-size:12px;text-align:center;margin-top:8px;min-height:16px"></div>
@@ -475,7 +475,7 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
     </div>
     <div class="pl-card">
       <div class="pl-card-top" style="background:linear-gradient(90deg,var(--green),transparent)"></div>
-      <div class="pl-label">Gross Profit</div>
+      <div class="pl-label">Net Profit</div>
       <div class="pl-total" id="pl-profit-total">—</div>
       <div class="pl-pct" id="pl-profit-pct"></div>
       <div class="pl-branch-row"><span class="pl-branch-lbl"><div class="pl-branch-dot" style="background:var(--cbd)"></div>CBD</span><span id="pl-profit-cbd" style="font-weight:700">—</span></div>
@@ -890,7 +890,7 @@ function setBadge(elId,pctVal,target){
 }
 function renderDonutLegend(elId,labels,values,colors){
   const total=values.reduce((a,b)=>a+b,0)||1, el=document.getElementById(elId); if(!el) return;
-  el.innerHTML='<div style="display:flex;justify-content:space-between;padding:5px 0;margin-bottom:3px;border-bottom:2px solid rgba(245,158,11,.15)"><span style="font-size:10px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">Total</span><span style="font-size:12px;font-weight:800;color:var(--amber)">'+nzd(total)+'</span></div>'+
+  el.innerHTML='<div style="display:flex;justify-content:space-between;padding:5px 0;margin-bottom:3px;border-bottom:2px solid rgba(148,163,184,.15)"><span style="font-size:10px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">Total</span><span style="font-size:12px;font-weight:800;color:var(--amber)">'+nzd(total)+'</span></div>'+
     labels.map((lbl,i)=>'<div class="donut-legend-row"><div class="donut-dot" style="background:'+colors[i]+'"></div><span class="donut-name">'+lbl+'</span><span class="donut-amt">'+nzd(values[i]||0)+'</span><span class="donut-pct">'+((values[i]||0)/total*100).toFixed(1)+'%</span></div>').join('');
 }
 
@@ -980,7 +980,8 @@ function renderSplitView(){
     const comm=gross-net;
     const food=sumField(inv,'amount');
     const {cost:lab}=calcLabour(b,start,end);
-    const profit=net-food-lab;
+    const fixed=calcFixed(b,start,end);
+    const profit=net-food-lab-fixed;
     const foodPct=net?food/net*100:0;
     const labPct=net?lab/net*100:0;
     $(('sv-'+k+'-sales')).textContent=nzd(net);
@@ -1004,7 +1005,9 @@ function renderSplitView(){
   const rotFood=sumField(byBranch(cachedInvoices,'Rototuna'),'amount');
   const {cost:cbdLab}=calcLabour('CBD',start,end);
   const {cost:rotLab}=calcLabour('Rototuna',start,end);
-  const combProfit=(cbdNet+rotNet)-(cbdFood+rotFood)-(cbdLab+rotLab);
+  const cbdFixed=calcFixed('CBD',start,end);
+  const rotFixed=calcFixed('Rototuna',start,end);
+  const combProfit=(cbdNet+rotNet)-(cbdFood+rotFood)-(cbdLab+rotLab)-(cbdFixed+rotFixed);
   $('sv-combined-sales').textContent=nzd(cbdNet+rotNet);
   $('sv-combined-food').textContent=nzd(cbdFood+rotFood);
   $('sv-combined-lab').textContent=nzd(cbdLab+rotLab);
@@ -1021,19 +1024,23 @@ function renderPL(){
   const cbdCogs=sumField(byBranch(cachedInvoices,'CBD'),'amount');
   const rotCogs=sumField(byBranch(cachedInvoices,'Rototuna'),'amount');
   const totalCogs=cbdCogs+rotCogs;
-  const cbdProfit=cbdNet-cbdCogs;
-  const rotProfit=rotNet-rotCogs;
-  const totalProfit=totalRev-totalCogs;
+  const {cost:cbdLabPL}=calcLabour('CBD',start,end);
+  const {cost:rotLabPL}=calcLabour('Rototuna',start,end);
+  const cbdFixedPL=calcFixed('CBD',start,end);
+  const rotFixedPL=calcFixed('Rototuna',start,end);
+  const cbdProfit=cbdNet-cbdCogs-cbdLabPL-cbdFixedPL;
+  const rotProfit=rotNet-rotCogs-rotLabPL-rotFixedPL;
+  const totalProfit=cbdProfit+rotProfit;
   $('pl-rev-total').textContent=nzd(totalRev);
   $('pl-rev-pct').textContent='100% of revenue';
   $('pl-rev-cbd').textContent=nzd(cbdNet);
   $('pl-rev-rot').textContent=nzd(rotNet);
   $('pl-cogs-total').textContent=nzd(totalCogs);
-  $('pl-cogs-pct').textContent=totalRev?'COGS: '+(totalCogs/totalRev*100).toFixed(1)+'%':'—';
+  $('pl-cogs-pct').textContent=totalRev?'Food cost: '+(totalCogs/totalRev*100).toFixed(1)+'%':'—';
   $('pl-cogs-cbd').textContent=nzd(cbdCogs);
   $('pl-cogs-rot').textContent=nzd(rotCogs);
   const profEl=$('pl-profit-total'); profEl.textContent=nzd(totalProfit); profEl.style.color=totalProfit>=0?'var(--green)':'var(--red)';
-  $('pl-profit-pct').textContent=totalRev?'Margin: '+(totalProfit/totalRev*100).toFixed(1)+'%':'—';
+  $('pl-profit-pct').textContent=totalRev?'Net margin: '+(totalProfit/totalRev*100).toFixed(1)+'%':'—';
   const cpEl=$('pl-profit-cbd'); cpEl.textContent=nzd(cbdProfit); cpEl.style.color=cbdProfit>=0?'var(--cbd)':'var(--red)';
   const rpEl=$('pl-profit-rot'); rpEl.textContent=nzd(rotProfit); rpEl.style.color=rotProfit>=0?'var(--roto)':'var(--red)';
   renderPLIntel(cbdNet,rotNet,totalRev,totalCogs,totalProfit);
@@ -1095,7 +1102,7 @@ function renderCostChart(){
   const fixed=calcFixed('CBD',start,end)+calcFixed('Rototuna',start,end);
   const other=Math.max(0,net-food-lab-fixed);
   const labels=['Food','Labour','Fixed','Other'],vals=[food,lab,fixed,other];
-  const colors=['#a855f7','#f59e0b','#3b82f6','#475569'];
+  const colors=['#a855f7','#e879f9','#3b82f6','#475569'];
   if(costChartInst) costChartInst.destroy();
   const ctx=document.getElementById('costChart'); if(!ctx) return;
   costChartInst=new Chart(ctx.getContext('2d'),{type:'doughnut',data:{labels,datasets:[{data:vals,backgroundColor:colors,borderColor:'#0f172a',borderWidth:2,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'72%',plugins:{legend:{display:false},datalabels:{display:false},tooltip:{callbacks:{label:c=>' '+c.label+': '+nzd(c.parsed)}}}}});
@@ -1103,12 +1110,20 @@ function renderCostChart(){
 }
 
 // ══════ RENDER CHANNELS ══════
+function salesByChannel(arr){
+  const ch={'In-House':0,'Uber Eats':0,'DoorDash':0,'Book&Orders':0};
+  arr.forEach(r=>{
+    ch['In-House']+=(Number(r.inhouse)||0);
+    ch['Uber Eats']+=(Number(r.uber)||0)-(Number(r.uber_comm)||Number(r.uber)*.3||0);
+    ch['DoorDash']+=(Number(r.doordash)||0)-(Number(r.doordash_comm)||Number(r.doordash)*.27||0);
+    ch['Book&Orders']+=(Number(r.booknorders)||0);
+  });
+  return Object.entries(ch).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+}
 function renderChannels(){
-  const channels={};
-  cachedSales.forEach(r=>{ if(r.channel) channels[r.channel]=(channels[r.channel]||0)+(Number(r.net_total)||0); });
-  const total=Object.values(channels).reduce((a,b)=>a+b,0)||1;
-  const sorted=Object.entries(channels).sort((a,b)=>b[1]-a[1]);
-  const colors=['#3b82f6','#34d399','#f59e0b','#a855f7','#f87171','#64748b'];
+  const sorted=salesByChannel(cachedSales);
+  const total=sorted.reduce((a,[,v])=>a+v,0)||1;
+  const colors=['#3b82f6','#34d399','#e879f9','#a855f7'];
   $('channelBreakdown').innerHTML=sorted.length?sorted.map(([n,v],i)=>'<div class="ch-pill"><div class="ch-dot" style="background:'+colors[i]+'"></div><span class="ch-name">'+n+'</span><div class="ch-bar-wrap"><div class="ch-bar" style="width:'+(v/total*100)+'%;background:'+colors[i]+'"></div></div><span class="ch-amt">'+nzd(v)+'</span></div>').join(''):'<div class="empty">No channel data</div>';
 }
 
@@ -1160,10 +1175,9 @@ function renderBranches(){
     const col=b==='CBD'?'var(--cbd)':'var(--roto)';
     const kpis=[{icon:'💰',lbl:'Net Revenue',val:nzd(net),glow:col},{icon:'🥗',lbl:'Food Cost',val:nzd(food),sub:pct(food,net),glow:'var(--purple)'},{icon:'👥',lbl:'Labour',val:nzd(lab),sub:hours.toFixed(1)+'h',glow:'var(--amber)'},{icon:'📊',lbl:'Net Profit',val:nzd(profit),glow:profit>=0?'var(--green)':'var(--red)'}];
     $('bKPI_'+b).innerHTML=kpis.map(k=>'<div class="kpi" style="--glow-col:'+k.glow+'"><div class="kpi-glow"></div><div class="kpi-icon">'+k.icon+'</div><div class="kpi-lbl">'+k.lbl+'</div><div class="kpi-val" style="font-size:18px">'+k.val+'</div>'+(k.sub?'<div class="kpi-sub">'+k.sub+'</div>':'')+'</div>').join('');
-    const channels={};
-    sales.forEach(r=>{ if(r.channel) channels[r.channel]=(channels[r.channel]||0)+(Number(r.net_total)||0); });
-    const cLabels=Object.keys(channels),cVals=Object.values(channels);
-    const cColors=['#3b82f6','#34d399','#f59e0b','#a855f7','#f87171','#64748b'];
+    const chEntries=salesByChannel(sales);
+    const cLabels=chEntries.map(([n])=>n), cVals=chEntries.map(([,v])=>v);
+    const cColors=['#3b82f6','#34d399','#94a3b8','#a855f7'];
     const bChKey='bChannel_'+b;
     if(bChannelInst[bChKey]) bChannelInst[bChKey].destroy();
     const ctx=document.getElementById(bChKey);
@@ -1193,7 +1207,7 @@ function renderFoodCost(){
   $('foodCostCombined').innerHTML='<div style="display:flex;gap:24px;flex-wrap:wrap"><div><div class="kpi-lbl" style="margin-bottom:4px">Total Invoices</div><div class="kpi-val" style="color:var(--amber)">'+nzd(total)+'</div></div><div><div class="kpi-lbl" style="margin-bottom:4px">Food Cost %</div><div class="kpi-val" style="color:'+(net&&total/net>0.35?'var(--red)':'var(--green)')+'">'+pct(total,net)+'</div></div><div><div class="kpi-lbl" style="margin-bottom:4px">Net Revenue</div><div class="kpi-val">'+nzd(net)+'</div></div></div>';
   const sups={CBD:{},Rototuna:{}},allSups={};
   cachedInvoices.forEach(r=>{ const s=r.supplier||'Unknown',b=r.branch||'CBD',a=Number(r.amount)||0; sups[b][s]=(sups[b][s]||0)+a; allSups[s]=(allSups[s]||0)+a; });
-  const allColors=['#f59e0b','#3b82f6','#34d399','#a855f7','#f87171','#64748b'];
+  const allColors=['#e879f9','#3b82f6','#34d399','#a855f7','#f87171','#64748b'];
   const allLabels=Object.keys(allSups),allVals=Object.values(allSups);
   if(supplierChartInst) supplierChartInst.destroy();
   const sc=document.getElementById('supplierChart');
@@ -1314,7 +1328,7 @@ async function runRosterScan(){
 
 // ══════ STAFF PROFILES ══════
 function renderStaffProfiles(){
-  const colors=['#3b82f6','#34d399','#f59e0b','#a855f7','#f87171','#64748b'];
+  const colors=['#3b82f6','#34d399','#e879f9','#a855f7','#f87171','#64748b'];
   $('staffGrid').innerHTML=allStaff.length?allStaff.map((s,i)=>'<div class="staff-card" onclick="openStaffModal(\''+s.id+'\')">'+'<div class="staff-card-top"><div class="staff-avatar" style="background:'+colors[i%colors.length]+'22;color:'+colors[i%colors.length]+';border:1px solid '+colors[i%colors.length]+'44">'+s.name[0]+'</div><div><div class="staff-name">'+s.name+'</div><div class="staff-pos">'+(s.position||'—')+' · <span class="pill '+(s.branch==='CBD'?'pill-cbd':s.branch==='Rototuna'?'pill-rot':'pill-both')+'">'+s.branch+'</span></div></div></div>'+(s.phone?'<div class="staff-detail">📱 '+s.phone+'</div>':'')+(s.email?'<div class="staff-detail">✉️ '+s.email+'</div>':'')+'<div class="staff-wage">'+(s.hourly_rate?'$'+s.hourly_rate+'/hr':'—')+'<span class="staff-wage-lbl"> hourly</span></div><div style="margin-top:6px;font-size:10px;color:'+(s.active?'var(--green)':'var(--t3)')+'">● '+(s.active?'Active':'Inactive')+'</div></div>').join(''):'<div class="empty">No staff yet — add one!</div>';
 }
 function renderFOHBOHCharts(){
@@ -1325,7 +1339,7 @@ function renderFOHBOHCharts(){
     if(!el) return;
     const existing=b==='CBD'?fohbohCBDInst:fohbohROTInst;
     if(existing) existing.destroy();
-    const inst=new Chart(el.getContext('2d'),{type:'doughnut',data:{labels:['FOH','BOH'],datasets:[{data:[foh,boh],backgroundColor:['#a855f7','#f59e0b'],borderColor:'#0f172a',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#94a3b8'}},datalabels:{color:'#fff',font:{weight:'bold',size:13},formatter:v=>v||''}}}});
+    const inst=new Chart(el.getContext('2d'),{type:'doughnut',data:{labels:['FOH','BOH'],datasets:[{data:[foh,boh],backgroundColor:['#a855f7','#94a3b8'],borderColor:'#0f172a',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#94a3b8'}},datalabels:{color:'#fff',font:{weight:'bold',size:13},formatter:v=>v||''}}}});
     if(b==='CBD') fohbohCBDInst=inst; else fohbohROTInst=inst;
   });
 }
@@ -1477,73 +1491,6 @@ function jumpToDate(val){
 
 // ══════ BRANCH / P&L INTEL ══════
 async function generateBranchIntel(){
-  $('plIntelText').textContent='❖ Generating…';
-  const {start,end}=getDateRange();
-  const cbdNet=sumField(byBranch(cachedSales,'CBD'),'net_total');
-  const rotNet=sumField(byBranch(cachedSales,'Rototuna'),'net_total');
-  const cbdFood=sumField(byBranch(cachedInvoices,'CBD'),'amount');
-  const rotFood=sumField(byBranch(cachedInvoices,'Rototuna'),'amount');
-  const {cost:cbdLab}=calcLabour('CBD',start,end);
-  const {cost:rotLab}=calcLabour('Rototuna',start,end);
-  const totalRev=cbdNet+rotNet, totalCogs=cbdFood+rotFood;
-  const margin=totalRev?(totalRev-totalCogs)/totalRev*100:0;
-  const prompt='You are a restaurant advisor for Saigon Noon, Hamilton NZ. Give 2-3 concise sentences analysing this P&L. Period: '+start+' to '+end+'.\nCBD: Revenue '+nzd(cbdNet)+', COGS '+nzd(cbdFood)+' ('+(cbdNet?(cbdFood/cbdNet*100).toFixed(1):'0')+'%), Labour '+nzd(cbdLab)+'.\nRototuna: Revenue '+nzd(rotNet)+', COGS '+nzd(rotFood)+' ('+(rotNet?(rotFood/rotNet*100).toFixed(1):'0')+'%), Labour '+nzd(rotLab)+'.\nCombined margin: '+margin.toFixed(1)+'%. Highlight what stands out and one action to improve profitability.';
-  try{
-    const r=await fetch(AI_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:[{role:'user',content:prompt}],max_tokens:150})});
-    const d=await r.json(); $('plIntelText').textContent=d.content?.[0]?.text||'Unable to generate insights.';
-  }catch(e){ $('plIntelText').textContent='AI unavailable — check connection.'; }
-}
-
-// ══════ FOOD COST INTEL ══════
-async function generateFoodIntel(){
-  $('foodIntelText').textContent='❖ Analysing food cost…';
-  const {start,end}=getDateRange();
-  const curTotal=sumField(cachedInvoices,'amount');
-  const lstTotal=sumField(cachedLastInvoices,'amount');
-  const curNet=sumField(cachedSales,'net_total');
-  const lstNet=sumField(cachedLastSales,'net_total');
-  const curSups={}, lstSups={};
-  cachedInvoices.forEach(r=>{ if(r.supplier) curSups[r.supplier]=(curSups[r.supplier]||0)+(Number(r.amount)||0); });
-  cachedLastInvoices.forEach(r=>{ if(r.supplier) lstSups[r.supplier]=(lstSups[r.supplier]||0)+(Number(r.amount)||0); });
-  const supChanges=Object.entries(curSups).map(([s,v])=>({name:s,cur:v,lst:lstSups[s]||0,diff:v-(lstSups[s]||0)})).sort((a,b)=>b.diff-a.diff);
-  const topUp=supChanges.filter(s=>s.diff>0).slice(0,3).map(s=>s.name+' +'+nzd(s.diff)).join(', ');
-  const topDown=supChanges.filter(s=>s.diff<0).slice(0,2).map(s=>s.name+' '+nzd(s.diff)).join(', ');
-  const curPct=curNet?curTotal/curNet*100:0, lstPct=lstNet?lstTotal/lstNet*100:0;
-  const prompt='You are a restaurant advisor for Saigon Noon, Hamilton NZ. Analyse food cost for period '+start+' to '+end+'.\nCurrent: total food cost '+nzd(curTotal)+' ('+curPct.toFixed(1)+'% of '+nzd(curNet)+' sales).\nPrevious period: '+nzd(lstTotal)+' ('+lstPct.toFixed(1)+'% of '+nzd(lstNet)+' sales).\nSuppliers spending MORE than last period: '+(topUp||'none')+'.\nSuppliers spending LESS: '+(topDown||'none')+'.\nGive 2-3 sentences: what changed, which ingredient category needs attention, one specific action.';
-  try{
-    const r=await fetch(AI_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:[{role:'user',content:prompt}],max_tokens:160})});
-    const d=await r.json(); $('foodIntelText').textContent=d.content?.[0]?.text||'Unable to generate insights.';
-  }catch(e){ $('foodIntelText').textContent='AI unavailable — check connection.'; }
-}
-
-// ══════ INIT ══════
-document.addEventListener('DOMContentLoaded',()=>{
-  updatePeriodLabel();
-  if(sessionStorage.getItem(SESSION_KEY)==='1') loadAll();
-  $('siWeekDate').value=getMondayStr(new Date());
-  setInterval(()=>{ if(document.querySelectorAll('.nav-item.active')[0]?.textContent.includes('Overview')) loadAll(); },300000);
-});
-</script>
-</body>
-</html>erval(()=>{ if(document.querySelectorAll('.nav-item.active')[0]?.textContent.includes('Overview')) loadAll(); },300000);
-});
-</script>
-</body>
-</html>
-function clearChat(){ chatHistory=[]; $('chatHistory').innerHTML='<div class="chat-msg assistant">👋 Hi! I\'m your restaurant assistant. Ask me anything about your business!</div>'; }
-const prompts={daily:'Give me a daily briefing on both branches performance, food cost, and any concerns.',food:'Analyze our food cost percentage and which suppliers are costing the most.',labour:'Analyze labour cost and efficiency across both branches.',promo:'Suggest 3 promotion ideas to boost sales this week at both branches.',strategy:'What strategic improvements would you recommend for our two branches this week?',alerts:'What are the top 3 alert items I should pay attention to right now?',cashflow:'Review our upcoming expenses and cash flow situation.',compare:'Compare CBD and Rototuna performance and tell me which is doing better and why.'};
-function quickPrompt(key){ $('chatInput').value=prompts[key]||key; sendChat(); }
-
-// ══════ DATE PICKER ══════
-function jumpToDate(val){
-  if(!val) return;
-  currentDate=new Date(val+'T12:00:00');
-  if(currentDate>new Date()) currentDate=new Date();
-  updatePeriodLabel(); loadAll();
-}
-
-// ══════ BRANCH / P&L INTEL ══════
-async function generateBranchIntel(){
   $('plIntelText').textContent='✦ Generating…';
   const {start,end}=getDateRange();
   const cbdNet=sumField(byBranch(cachedSales,'CBD'),'net_total');
@@ -1565,13 +1512,10 @@ async function generateBranchIntel(){
 async function generateFoodIntel(){
   $('foodIntelText').textContent='✦ Analysing food cost…';
   const {start,end}=getDateRange();
-  const lastStart=localDateStr(new Date(new Date(start).getTime()-7*864e5));
-  const lastEnd=localDateStr(new Date(new Date(end).getTime()-7*864e5));
   const curTotal=sumField(cachedInvoices,'amount');
   const lstTotal=sumField(cachedLastInvoices,'amount');
   const curNet=sumField(cachedSales,'net_total');
   const lstNet=sumField(cachedLastSales,'net_total');
-  // Build supplier comparison
   const curSups={}, lstSups={};
   cachedInvoices.forEach(r=>{ if(r.supplier) curSups[r.supplier]=(curSups[r.supplier]||0)+(Number(r.amount)||0); });
   cachedLastInvoices.forEach(r=>{ if(r.supplier) lstSups[r.supplier]=(lstSups[r.supplier]||0)+(Number(r.amount)||0); });
@@ -1582,17 +1526,4 @@ async function generateFoodIntel(){
   const prompt='You are a restaurant advisor for Saigon Noon, Hamilton NZ. Analyse food cost for period '+start+' to '+end+'.\nCurrent: total food cost '+nzd(curTotal)+' ('+curPct.toFixed(1)+'% of '+nzd(curNet)+' sales).\nPrevious period: '+nzd(lstTotal)+' ('+lstPct.toFixed(1)+'% of '+nzd(lstNet)+' sales).\nSuppliers spending MORE than last period: '+(topUp||'none')+'.\nSuppliers spending LESS: '+(topDown||'none')+'.\nGive 2-3 sentences: what changed, which ingredient category needs attention, one specific action.';
   try{
     const r=await fetch(AI_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:[{role:'user',content:prompt}],max_tokens:160})});
-    const d=await r.json(); $('foodIntelText').textContent=d.content?.[0]?.text||'Unable to generate insights.';
-  }catch(e){ $('foodIntelText').textContent='AI unavailable — check connection.'; }
-}
-
-// ══════ INIT ══════
-document.addEventListener('DOMContentLoaded',()=>{
-  updatePeriodLabel();
-  if(sessionStorage.getItem(SESSION_KEY)==='1') loadAll();
-  $('siWeekDate').value=getMondayStr(new Date());
-  setInterval(()=>{ if(document.querySelectorAll('.nav-item.active')[0]?.textContent.includes('Overview')||document.querySelectorAll('.nav-item.active')[0]?.textContent.includes('P&L')) loadAll(); },300000);
-});
-</script>
-</body>
-</html>
+    const d=await r.json(); $('f
