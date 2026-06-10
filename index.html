@@ -323,8 +323,7 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 <!-- NAV -->
 <div class="nav">
   <div class="nav-item active" onclick="showSection('overview',this)">⚡ Overview</div>
-  <div class="nav-item" onclick="showSection('pl',this)">📊 P&amp;L</div>
-  <div class="nav-item" onclick="showSection('branches',this)">🏪 Branches</div>
+  <div class="nav-item" onclick="showSection('branches',this)">📊 P&amp;L</div>
   <div class="nav-item" onclick="showSection('foodcost',this)">🥗 Food Cost</div>
   <div class="nav-item" onclick="showSection('labour',this)">📅 Roster</div>
   <div class="nav-item" onclick="showSection('cashflow',this)">💸 Cash Flow</div>
@@ -342,9 +341,11 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
   </div>
   <div class="period-nav">
     <div class="period-arrow" onclick="shiftPeriod(-1)">&#8249;</div>
-    <div class="period-label" id="period-label">Loading…</div>
+    <div class="period-label" id="period-label" style="cursor:pointer" onclick="document.getElementById('datePicker').showPicker?document.getElementById('datePicker').showPicker():document.getElementById('datePicker').click()" title="Click to pick a date">Loading…</div>
     <div class="period-arrow" onclick="shiftPeriod(1)">&#8250;</div>
   </div>
+  <input type="date" id="datePicker" style="position:absolute;opacity:0;pointer-events:none;width:0;height:0" onchange="jumpToDate(this.value)">
+  <button class="period-arrow" style="font-size:13px" onclick="document.getElementById('datePicker').showPicker?document.getElementById('datePicker').showPicker():document.getElementById('datePicker').click()" title="Pick a date">📅</button>
   <button class="refresh-btn" onclick="loadAll()">↻ Refresh</button>
 </div>
 
@@ -453,8 +454,8 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
   </div>
 </div>
 
-<!-- P&L -->
-<div class="section" id="sec-pl">
+<!-- BRANCHES / P&L -->
+<div class="section" id="sec-branches">
   <div class="pl-grid">
     <div class="pl-card">
       <div class="pl-card-top" style="background:linear-gradient(90deg,var(--cbd),transparent)"></div>
@@ -487,11 +488,8 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
       <div class="intel-label">P&amp;L Intel</div>
       <div class="intel-text" id="plIntelText">Load data to see P&amp;L analysis.</div>
     </div>
+    <button class="intel-refresh" onclick="generateBranchIntel()">↻ Generate</button>
   </div>
-</div>
-
-<!-- BRANCHES -->
-<div class="section" id="sec-branches">
   <div style="margin-bottom:28px">
     <div style="font-size:14px;font-weight:800;color:var(--cbd);margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid rgba(59,130,246,.2)">🏪 CBD Branch</div>
     <div class="kpi-grid" id="bKPI_CBD"></div>
@@ -512,6 +510,14 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 
 <!-- FOOD COST -->
 <div class="section" id="sec-foodcost">
+  <div class="intel-strip" style="margin-bottom:20px">
+    <div class="intel-icon">✦</div>
+    <div class="intel-body">
+      <div class="intel-label">Food Cost Intel</div>
+      <div class="intel-text" id="foodIntelText">Click Generate to analyse food cost vs previous period.</div>
+    </div>
+    <button class="intel-refresh" onclick="generateFoodIntel()">↻ Generate</button>
+  </div>
   <div class="card" style="margin-bottom:0">
     <div class="card-title">🥗 Food Cost Summary</div>
     <div id="foodCostCombined"></div>
@@ -1461,6 +1467,125 @@ function clearChat(){ chatHistory=[]; $('chatHistory').innerHTML='<div class="ch
 const prompts={daily:'Give me a daily briefing on both branches performance, food cost, and any concerns.',food:'Analyze our food cost percentage and which suppliers are costing the most.',labour:'Analyze labour cost and efficiency across both branches.',promo:'Suggest 3 promotion ideas to boost sales this week at both branches.',strategy:'What strategic improvements would you recommend for our two branches this week?',alerts:'What are the top 3 alert items I should pay attention to right now?',cashflow:'Review our upcoming expenses and cash flow situation.',compare:'Compare CBD and Rototuna performance and tell me which is doing better and why.'};
 function quickPrompt(key){ $('chatInput').value=prompts[key]||key; sendChat(); }
 
+// ══════ DATE PICKER ══════
+function jumpToDate(val){
+  if(!val) return;
+  currentDate=new Date(val+'T12:00:00');
+  if(currentDate>new Date()) currentDate=new Date();
+  updatePeriodLabel(); loadAll();
+}
+
+// ══════ BRANCH / P&L INTEL ══════
+async function generateBranchIntel(){
+  $('plIntelText').textContent='❖ Generating…';
+  const {start,end}=getDateRange();
+  const cbdNet=sumField(byBranch(cachedSales,'CBD'),'net_total');
+  const rotNet=sumField(byBranch(cachedSales,'Rototuna'),'net_total');
+  const cbdFood=sumField(byBranch(cachedInvoices,'CBD'),'amount');
+  const rotFood=sumField(byBranch(cachedInvoices,'Rototuna'),'amount');
+  const {cost:cbdLab}=calcLabour('CBD',start,end);
+  const {cost:rotLab}=calcLabour('Rototuna',start,end);
+  const totalRev=cbdNet+rotNet, totalCogs=cbdFood+rotFood;
+  const margin=totalRev?(totalRev-totalCogs)/totalRev*100:0;
+  const prompt='You are a restaurant advisor for Saigon Noon, Hamilton NZ. Give 2-3 concise sentences analysing this P&L. Period: '+start+' to '+end+'.\nCBD: Revenue '+nzd(cbdNet)+', COGS '+nzd(cbdFood)+' ('+(cbdNet?(cbdFood/cbdNet*100).toFixed(1):'0')+'%), Labour '+nzd(cbdLab)+'.\nRototuna: Revenue '+nzd(rotNet)+', COGS '+nzd(rotFood)+' ('+(rotNet?(rotFood/rotNet*100).toFixed(1):'0')+'%), Labour '+nzd(rotLab)+'.\nCombined margin: '+margin.toFixed(1)+'%. Highlight what stands out and one action to improve profitability.';
+  try{
+    const r=await fetch(AI_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:[{role:'user',content:prompt}],max_tokens:150})});
+    const d=await r.json(); $('plIntelText').textContent=d.content?.[0]?.text||'Unable to generate insights.';
+  }catch(e){ $('plIntelText').textContent='AI unavailable — check connection.'; }
+}
+
+// ══════ FOOD COST INTEL ══════
+async function generateFoodIntel(){
+  $('foodIntelText').textContent='❖ Analysing food cost…';
+  const {start,end}=getDateRange();
+  const curTotal=sumField(cachedInvoices,'amount');
+  const lstTotal=sumField(cachedLastInvoices,'amount');
+  const curNet=sumField(cachedSales,'net_total');
+  const lstNet=sumField(cachedLastSales,'net_total');
+  const curSups={}, lstSups={};
+  cachedInvoices.forEach(r=>{ if(r.supplier) curSups[r.supplier]=(curSups[r.supplier]||0)+(Number(r.amount)||0); });
+  cachedLastInvoices.forEach(r=>{ if(r.supplier) lstSups[r.supplier]=(lstSups[r.supplier]||0)+(Number(r.amount)||0); });
+  const supChanges=Object.entries(curSups).map(([s,v])=>({name:s,cur:v,lst:lstSups[s]||0,diff:v-(lstSups[s]||0)})).sort((a,b)=>b.diff-a.diff);
+  const topUp=supChanges.filter(s=>s.diff>0).slice(0,3).map(s=>s.name+' +'+nzd(s.diff)).join(', ');
+  const topDown=supChanges.filter(s=>s.diff<0).slice(0,2).map(s=>s.name+' '+nzd(s.diff)).join(', ');
+  const curPct=curNet?curTotal/curNet*100:0, lstPct=lstNet?lstTotal/lstNet*100:0;
+  const prompt='You are a restaurant advisor for Saigon Noon, Hamilton NZ. Analyse food cost for period '+start+' to '+end+'.\nCurrent: total food cost '+nzd(curTotal)+' ('+curPct.toFixed(1)+'% of '+nzd(curNet)+' sales).\nPrevious period: '+nzd(lstTotal)+' ('+lstPct.toFixed(1)+'% of '+nzd(lstNet)+' sales).\nSuppliers spending MORE than last period: '+(topUp||'none')+'.\nSuppliers spending LESS: '+(topDown||'none')+'.\nGive 2-3 sentences: what changed, which ingredient category needs attention, one specific action.';
+  try{
+    const r=await fetch(AI_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:[{role:'user',content:prompt}],max_tokens:160})});
+    const d=await r.json(); $('foodIntelText').textContent=d.content?.[0]?.text||'Unable to generate insights.';
+  }catch(e){ $('foodIntelText').textContent='AI unavailable — check connection.'; }
+}
+
+// ══════ INIT ══════
+document.addEventListener('DOMContentLoaded',()=>{
+  updatePeriodLabel();
+  if(sessionStorage.getItem(SESSION_KEY)==='1') loadAll();
+  $('siWeekDate').value=getMondayStr(new Date());
+  setInterval(()=>{ if(document.querySelectorAll('.nav-item.active')[0]?.textContent.includes('Overview')) loadAll(); },300000);
+});
+</script>
+</body>
+</html>erval(()=>{ if(document.querySelectorAll('.nav-item.active')[0]?.textContent.includes('Overview')) loadAll(); },300000);
+});
+</script>
+</body>
+</html>
+function clearChat(){ chatHistory=[]; $('chatHistory').innerHTML='<div class="chat-msg assistant">👋 Hi! I\'m your restaurant assistant. Ask me anything about your business!</div>'; }
+const prompts={daily:'Give me a daily briefing on both branches performance, food cost, and any concerns.',food:'Analyze our food cost percentage and which suppliers are costing the most.',labour:'Analyze labour cost and efficiency across both branches.',promo:'Suggest 3 promotion ideas to boost sales this week at both branches.',strategy:'What strategic improvements would you recommend for our two branches this week?',alerts:'What are the top 3 alert items I should pay attention to right now?',cashflow:'Review our upcoming expenses and cash flow situation.',compare:'Compare CBD and Rototuna performance and tell me which is doing better and why.'};
+function quickPrompt(key){ $('chatInput').value=prompts[key]||key; sendChat(); }
+
+// ══════ DATE PICKER ══════
+function jumpToDate(val){
+  if(!val) return;
+  currentDate=new Date(val+'T12:00:00');
+  if(currentDate>new Date()) currentDate=new Date();
+  updatePeriodLabel(); loadAll();
+}
+
+// ══════ BRANCH / P&L INTEL ══════
+async function generateBranchIntel(){
+  $('plIntelText').textContent='✦ Generating…';
+  const {start,end}=getDateRange();
+  const cbdNet=sumField(byBranch(cachedSales,'CBD'),'net_total');
+  const rotNet=sumField(byBranch(cachedSales,'Rototuna'),'net_total');
+  const cbdFood=sumField(byBranch(cachedInvoices,'CBD'),'amount');
+  const rotFood=sumField(byBranch(cachedInvoices,'Rototuna'),'amount');
+  const {cost:cbdLab}=calcLabour('CBD',start,end);
+  const {cost:rotLab}=calcLabour('Rototuna',start,end);
+  const totalRev=cbdNet+rotNet, totalCogs=cbdFood+rotFood;
+  const margin=totalRev?(totalRev-totalCogs)/totalRev*100:0;
+  const prompt='You are a restaurant advisor for Saigon Noon, Hamilton NZ. Give 2-3 concise sentences analysing this P&L. Period: '+start+' to '+end+'.\nCBD: Revenue '+nzd(cbdNet)+', COGS '+nzd(cbdFood)+' ('+(cbdNet?(cbdFood/cbdNet*100).toFixed(1):'0')+'%), Labour '+nzd(cbdLab)+'.\nRototuna: Revenue '+nzd(rotNet)+', COGS '+nzd(rotFood)+' ('+(rotNet?(rotFood/rotNet*100).toFixed(1):'0')+'%), Labour '+nzd(rotLab)+'.\nCombined margin: '+margin.toFixed(1)+'%. Highlight what stands out and one action to improve profitability.';
+  try{
+    const r=await fetch(AI_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:[{role:'user',content:prompt}],max_tokens:150})});
+    const d=await r.json(); $('plIntelText').textContent=d.content?.[0]?.text||'Unable to generate insights.';
+  }catch(e){ $('plIntelText').textContent='AI unavailable — check connection.'; }
+}
+
+// ══════ FOOD COST INTEL ══════
+async function generateFoodIntel(){
+  $('foodIntelText').textContent='✦ Analysing food cost…';
+  const {start,end}=getDateRange();
+  const lastStart=localDateStr(new Date(new Date(start).getTime()-7*864e5));
+  const lastEnd=localDateStr(new Date(new Date(end).getTime()-7*864e5));
+  const curTotal=sumField(cachedInvoices,'amount');
+  const lstTotal=sumField(cachedLastInvoices,'amount');
+  const curNet=sumField(cachedSales,'net_total');
+  const lstNet=sumField(cachedLastSales,'net_total');
+  // Build supplier comparison
+  const curSups={}, lstSups={};
+  cachedInvoices.forEach(r=>{ if(r.supplier) curSups[r.supplier]=(curSups[r.supplier]||0)+(Number(r.amount)||0); });
+  cachedLastInvoices.forEach(r=>{ if(r.supplier) lstSups[r.supplier]=(lstSups[r.supplier]||0)+(Number(r.amount)||0); });
+  const supChanges=Object.entries(curSups).map(([s,v])=>({name:s,cur:v,lst:lstSups[s]||0,diff:v-(lstSups[s]||0)})).sort((a,b)=>b.diff-a.diff);
+  const topUp=supChanges.filter(s=>s.diff>0).slice(0,3).map(s=>s.name+' +'+nzd(s.diff)).join(', ');
+  const topDown=supChanges.filter(s=>s.diff<0).slice(0,2).map(s=>s.name+' '+nzd(s.diff)).join(', ');
+  const curPct=curNet?curTotal/curNet*100:0, lstPct=lstNet?lstTotal/lstNet*100:0;
+  const prompt='You are a restaurant advisor for Saigon Noon, Hamilton NZ. Analyse food cost for period '+start+' to '+end+'.\nCurrent: total food cost '+nzd(curTotal)+' ('+curPct.toFixed(1)+'% of '+nzd(curNet)+' sales).\nPrevious period: '+nzd(lstTotal)+' ('+lstPct.toFixed(1)+'% of '+nzd(lstNet)+' sales).\nSuppliers spending MORE than last period: '+(topUp||'none')+'.\nSuppliers spending LESS: '+(topDown||'none')+'.\nGive 2-3 sentences: what changed, which ingredient category needs attention, one specific action.';
+  try{
+    const r=await fetch(AI_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:[{role:'user',content:prompt}],max_tokens:160})});
+    const d=await r.json(); $('foodIntelText').textContent=d.content?.[0]?.text||'Unable to generate insights.';
+  }catch(e){ $('foodIntelText').textContent='AI unavailable — check connection.'; }
+}
+
 // ══════ INIT ══════
 document.addEventListener('DOMContentLoaded',()=>{
   updatePeriodLabel();
@@ -1469,8 +1594,5 @@ document.addEventListener('DOMContentLoaded',()=>{
   setInterval(()=>{ if(document.querySelectorAll('.nav-item.active')[0]?.textContent.includes('Overview')||document.querySelectorAll('.nav-item.active')[0]?.textContent.includes('P&L')) loadAll(); },300000);
 });
 </script>
-</body>
-</html>
-
 </body>
 </html>
