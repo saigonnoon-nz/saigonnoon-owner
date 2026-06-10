@@ -1514,9 +1514,11 @@ function chatKeyDown(e){ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sen
 async function sendChat(){
   const inp=$('chatInput'), q=inp.value.trim(); if(!q) return;
   inp.value=''; chatHistory.push({role:'user',content:q}); appendMsg('user',q); appendMsg('assistant','Thinking…','loading'); $('chatSendBtn').disabled=true;
-  const sysMsg='You are a trusted business advisor and friend for Erik, owner of Saigon Noon (Vietnamese restaurant, Hamilton NZ, two branches: CBD and Rototuna). You have FULL access to his live data below — always use it directly. Never say you don\'t have access to the data.\n\n'+(assistantContext||'No data loaded yet.')+'\n\nTone: Talk like a knowledgeable friend, not a consultant writing a report. Keep it conversational — short sentences, no headers, no bullet points, no tables unless Erik specifically asks. Use actual dollar figures. Be direct and honest. If something looks bad, say so plainly. End with one clear suggestion when useful.';
+  const ctx=assistantContext||'No restaurant data loaded yet — ask Erik to refresh the page.';
+  const instruction='You are a trusted business advisor and friend for Erik, owner of Saigon Noon (Vietnamese restaurant, Hamilton NZ, two branches: CBD and Rototuna). You have FULL access to his live data below. Always use the actual numbers in your answer. Never say you don\'t have access to the data.\n\nLIVE RESTAURANT DATA:\n'+ctx+'\n\nTone: Talk like a knowledgeable friend, not a consultant. Short sentences, conversational, no headers, no bullet points, no tables unless Erik asks. Use actual dollar figures. Be direct — if something looks bad, say so plainly.';
+  const apiMessages=[{role:'user',content:instruction},{role:'assistant',content:'Got it, I have the live data for Saigon Noon. What would you like to know?'},...chatHistory];
   try{
-    const r=await fetch(AI_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:sysMsg,messages:chatHistory,max_tokens:600})});
+    const r=await fetch(AI_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:apiMessages,max_tokens:600})});
     const d=await r.json(); const resp=d.content?.[0]?.text||'Sorry, no response.';
     removeLastMsg(); appendMsg('assistant',resp); chatHistory.push({role:'assistant',content:resp});
   }catch(e){ removeLastMsg(); appendMsg('assistant','Error connecting to AI. Check connection.'); }
