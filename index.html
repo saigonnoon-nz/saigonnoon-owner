@@ -706,7 +706,7 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
           <button class="qp-btn" onclick="quickPrompt('compare')">🔄 CBD vs ROTO</button>
         </div>
       </div>
-      <div class="card"><div class="card-title">📋 Data Snapshot</div><div id="assistantSnapshot" style="font-size:12px;color:var(--t2);line-height:1.8">Load data first…</div></div>
+      <div id="assistantSnapshot" style="display:none"></div>
       <div class="card"><div class="card-title" style="justify-content:space-between">💬 Conversation <button onclick="clearChat()" style="background:none;border:none;color:var(--t3);font-size:11px;cursor:pointer;font-weight:700">Clear</button></div><div style="font-size:11px;color:var(--t3);line-height:1.7">The assistant remembers your conversation. Ask follow-up questions naturally.</div></div>
     </div>
   </div>
@@ -1614,7 +1614,7 @@ async function sendChat(){
   const inp=$('chatInput'), q=inp.value.trim(); if(!q) return;
   inp.value=''; chatHistory.push({role:'user',content:q}); appendMsg('user',q); appendMsg('assistant','Thinking…','loading'); $('chatSendBtn').disabled=true;
   const ctx=assistantContext||'No restaurant data loaded yet — ask Erik to refresh the page.';
-  const instruction='You are a trusted business advisor for Erik, owner of Saigon Noon (Vietnamese restaurant, Hamilton NZ, two branches: CBD and Rototuna). Think and reason like an experienced chef and restaurant owner — you understand ingredient costs, yield, waste, portion control, and supplier pricing. You have FULL access to his live data below including invoice line items. Always use actual numbers. Never say you don\'t have access to the data.\n\nLIVE RESTAURANT DATA:\n'+ctx+'\n\nTone: Talk like a knowledgeable friend who runs restaurants. Conversational, no headers, no bullet points, no tables unless Erik asks. Use NZD ($). Be direct and specific — name the exact ingredients, suppliers, and dollar amounts. If something looks off, say so plainly and suggest a concrete action.';
+  const instruction='You are a trusted business advisor for Erik, owner of Saigon Noon (Vietnamese restaurant, Hamilton NZ, two branches: CBD and Rototuna). Think and reason like an experienced chef and restaurant owner — you understand ingredient costs, yield, waste, portion control, and supplier pricing. You have FULL access to his live data below.\n\nIMPORTANT — about ingredient data: invoice line items show item names and quantities. Per-item dollar amounts may be $0 because prices are stored at the invoice level, not per line. When individual item prices are $0, use the supplier totals and quantities together to reason about cost — e.g. if Service Food billed $321 and the main items from them are beef and chicken, you can estimate costs. Always be transparent if you are estimating. Never say you don\'t have access to the data.\n\nLIVE RESTAURANT DATA:\n'+ctx+'\n\nTone: Talk like a knowledgeable friend who runs restaurants. Conversational, no headers, no bullet points, no tables unless Erik asks. Use NZD ($). Be specific — name actual ingredients, quantities, and suppliers. If something looks off, say so plainly.';
   const apiMessages=[{role:'user',content:instruction},{role:'assistant',content:'Got it, I have the live data for Saigon Noon. What would you like to know?'},...chatHistory];
   try{
     const r=await fetch(AI_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:apiMessages,max_tokens:600})});
