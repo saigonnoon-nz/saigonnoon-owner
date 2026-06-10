@@ -1470,27 +1470,19 @@ async function updateAssistantSnapshotFull(){
       sbGet('invoices','branch=neq.null&date=gte.'+d90+'&date=lte.'+today+'&order=date'),
     ]);
   }catch(e){ sales90=cachedSales; inv90=cachedInvoices; }
-  // Fetch invoice line items for this week + last week
+  // Fetch invoice line items directly by date (invoice_items has its own date+branch fields)
   const weekStart=getMondayStr(new Date());
   const lastWeekStart=localDateStr(new Date(new Date(weekStart).getTime()-7*864e5));
-  const recentInvs=inv90.filter(r=>r.date>=lastWeekStart);
-  const recentInvIds=[...new Set(recentInvs.map(r=>r.id).filter(Boolean))];
   let invoiceItems=[];
-  if(recentInvIds.length>0){
-    try{ invoiceItems=await sbGet('invoice_items','invoice_id=in.('+recentInvIds.slice(0,120).join(',')+')&order=invoice_id'); }catch(e){ invoiceItems=[]; }
-  }
-  // Build invoice lookup: id → {branch, date, supplier}
-  const invLookup={};
-  recentInvs.forEach(inv=>{ invLookup[inv.id]=inv; });
-  // Aggregate line items by branch + week + description
+  try{ invoiceItems=await sbGet('invoice_items','date=gte.'+lastWeekStart+'&date=lte.'+today+'&order=date'); }catch(e){ invoiceItems=[]; }
+  // Aggregate by branch + week + item_name
   const itemAgg={};
   invoiceItems.forEach(item=>{
-    const inv=invLookup[item.invoice_id];
-    if(!inv||!item.description) return;
-    const wk=inv.date>=weekStart?'This week':'Last week';
-    const key=inv.branch+'|'+wk+'|'+item.description.trim().toLowerCase();
-    if(!itemAgg[key]) itemAgg[key]={branch:inv.branch,wk,desc:item.description.trim(),qty:0,unit:item.unit||'',amt:0,supplier:inv.supplier||''};
-    itemAgg[key].qty+=Number(item.quantity)||0;
+    if(!item.item_name) return;
+    const wk=item.date>=weekStart?'This week':'Last week';
+    const key=(item.branch||'?')+'|'+wk+'|'+item.item_name.trim().toLowerCase();
+    if(!itemAgg[key]) itemAgg[key]={branch:item.branch||'?',wk,desc:item.item_name.trim(),qty:0,unit:item.unit||'',amt:0,supplier:item.supplier||''};
+    itemAgg[key].qty+=Number(item.qty)||0;
     itemAgg[key].amt+=Number(item.amount)||0;
   });
   // Format ingredient context
