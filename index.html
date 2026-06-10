@@ -1526,4 +1526,9 @@ async function generateFoodIntel(){
   const prompt='You are a restaurant advisor for Saigon Noon, Hamilton NZ. Analyse food cost for period '+start+' to '+end+'.\nCurrent: total food cost '+nzd(curTotal)+' ('+curPct.toFixed(1)+'% of '+nzd(curNet)+' sales).\nPrevious period: '+nzd(lstTotal)+' ('+lstPct.toFixed(1)+'% of '+nzd(lstNet)+' sales).\nSuppliers spending MORE than last period: '+(topUp||'none')+'.\nSuppliers spending LESS: '+(topDown||'none')+'.\nGive 2-3 sentences: what changed, which ingredient category needs attention, one specific action.';
   try{
     const r=await fetch(AI_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:[{role:'user',content:prompt}],max_tokens:160})});
-    const d=await r.json(); $('f
+    const d=await r.json(); $('foodIntelText').textContent=d.content?.[0]?.text||'Unable to generate insights.';
+  }catch(e){ $('foodIntelText').textContent='AI unavailable — check connection.'; }
+}
+</script>
+</body>
+</html>
