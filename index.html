@@ -1456,10 +1456,53 @@ async function loadOwnerItems(){
 let chatHistory=[], assistantContext='';
 function updateAssistantSnapshot(){
   const {start,end}=getDateRange();
-  const cbdNet=sumField(byBranch(cachedSales,'CBD'),'net_total'), rotNet=sumField(byBranch(cachedSales,'Rototuna'),'net_total');
+  // Current period
+  const cbdSales=byBranch(cachedSales,'CBD'), rotSales=byBranch(cachedSales,'Rototuna');
+  const cbdNet=sumField(cbdSales,'net_total'), rotNet=sumField(rotSales,'net_total');
+  const cbdGross=sumField(cbdSales,'gross_total'), rotGross=sumField(rotSales,'gross_total');
   const cbdFood=sumField(byBranch(cachedInvoices,'CBD'),'amount'), rotFood=sumField(byBranch(cachedInvoices,'Rototuna'),'amount');
   const {cost:cbdLab}=calcLabour('CBD',start,end), {cost:rotLab}=calcLabour('Rototuna',start,end);
-  assistantContext='Restaurant: Saigon Noon (Vietnamese). Two branches. Period: '+start+' to '+end+'.\nCBD: Revenue '+nzd(cbdNet)+', Food '+nzd(cbdFood)+' ('+(cbdNet?(cbdFood/cbdNet*100).toFixed(1):'0')+'%), Labour '+nzd(cbdLab)+'.\nRototuna: Revenue '+nzd(rotNet)+', Food '+nzd(rotFood)+' ('+(rotNet?(rotFood/rotNet*100).toFixed(1):'0')+'%), Labour '+nzd(rotLab)+'.\nCombined: Revenue '+nzd(cbdNet+rotNet)+', Profit '+nzd(cbdNet+rotNet-cbdFood-rotFood-cbdLab-rotLab)+'.';
+  const cbdFixed=calcFixed('CBD',start,end), rotFixed=calcFixed('Rototuna',start,end);
+  const cbdProfit=cbdNet-cbdFood-cbdLab-cbdFixed, rotProfit=rotNet-rotFood-rotLab-rotFixed;
+  const totalNet=cbdNet+rotNet, totalFood=cbdFood+rotFood, totalLab=cbdLab+rotLab;
+  // Previous period
+  const lstCbdNet=sumField(byBranch(cachedLastSales,'CBD'),'net_total');
+  const lstRotNet=sumField(byBranch(cachedLastSales,'Rototuna'),'net_total');
+  const lstTotalNet=lstCbdNet+lstRotNet;
+  const pct=(cur,lst)=>lst?((cur-lst)/lst*100).toFixed(1)+'%':'n/a';
+  // Sales channels combined
+  const allCh=salesByChannel(cachedSales);
+  const chStr=allCh.map(([n,v])=>n+' '+nzd(v)).join(', ')||'no data';
+  // Suppliers this period
+  const supMap={};
+  cachedInvoices.forEach(r=>{if(r.supplier) supMap[r.supplier]=(supMap[r.supplier]||0)+(Number(r.amount)||0);});
+  const supStr=Object.entries(supMap).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([s,v])=>s+' '+nzd(v)).join(', ')||'none';
+  // Suppliers vs last period
+  const lstSupMap={};
+  cachedLastInvoices.forEach(r=>{if(r.supplier) lstSupMap[r.supplier]=(lstSupMap[r.supplier]||0)+(Number(r.amount)||0);});
+  const supChange=Object.entries(supMap).map(([s,v])=>{const d=v-(lstSupMap[s]||0);return d!==0?s+(d>0?' +':' ')+nzd(d):null;}).filter(Boolean).slice(0,4).join(', ')||'no change';
+  // Build rich context
+  assistantContext=
+    'RESTAURANT: Saigon Noon, Vietnamese, Hamilton NZ. Two branches: CBD and Rototuna.\n'+
+    'PERIOD: '+start+(start!==end?' to '+end:'')+' ('+period+' view)\n\n'+
+    'SALES THIS PERIOD:\n'+
+    '  CBD: net '+nzd(cbdNet)+' (gross '+nzd(cbdGross)+') vs last period '+nzd(lstCbdNet)+' → '+pct(cbdNet,lstCbdNet)+'\n'+
+    '  Rototuna: net '+nzd(rotNet)+' (gross '+nzd(rotGross)+') vs last period '+nzd(lstRotNet)+' → '+pct(rotNet,lstRotNet)+'\n'+
+    '  Combined: net '+nzd(totalNet)+' vs last period '+nzd(lstTotalNet)+' → '+pct(totalNet,lstTotalNet)+'\n'+
+    '  Channels (net after commission): '+chStr+'\n\n'+
+    'FOOD COST:\n'+
+    '  CBD: '+nzd(cbdFood)+' ('+(cbdNet?(cbdFood/cbdNet*100).toFixed(1):'0')+'% of net)\n'+
+    '  Rototuna: '+nzd(rotFood)+' ('+(rotNet?(rotFood/rotNet*100).toFixed(1):'0')+'% of net)\n'+
+    '  Suppliers this period: '+supStr+'\n'+
+    '  vs last period changes: '+supChange+'\n\n'+
+    'LABOUR:\n'+
+    '  CBD: '+nzd(cbdLab)+' ('+(cbdNet?(cbdLab/cbdNet*100).toFixed(1):'0')+'% of net)\n'+
+    '  Rototuna: '+nzd(rotLab)+' ('+(rotNet?(rotLab/rotNet*100).toFixed(1):'0')+'% of net)\n\n'+
+    'FIXED COSTS: CBD '+nzd(cbdFixed)+', Rototuna '+nzd(rotFixed)+'\n\n'+
+    'NET PROFIT:\n'+
+    '  CBD: '+nzd(cbdProfit)+' ('+(cbdNet?(cbdProfit/cbdNet*100).toFixed(1):'0')+'% margin)\n'+
+    '  Rototuna: '+nzd(rotProfit)+' ('+(rotNet?(rotProfit/rotNet*100).toFixed(1):'0')+'% margin)\n'+
+    '  Combined: '+nzd(cbdProfit+rotProfit)+' ('+(totalNet?(((cbdProfit+rotProfit)/totalNet)*100).toFixed(1):'0')+'% margin)';
   $('assistantContextBadge').textContent='✔ Data loaded for '+start+(start!==end?' – '+end:'');
   $('assistantSnapshot').textContent=assistantContext;
 }
@@ -1467,7 +1510,7 @@ function chatKeyDown(e){ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sen
 async function sendChat(){
   const inp=$('chatInput'), q=inp.value.trim(); if(!q) return;
   inp.value=''; chatHistory.push({role:'user',content:q}); appendMsg('user',q); appendMsg('assistant','Thinking…','loading'); $('chatSendBtn').disabled=true;
-  const sysMsg='You are a helpful restaurant business advisor for Saigon Noon, a Vietnamese restaurant in Hamilton, NZ with two branches: CBD and Rototuna.\n\nCurrent data:\n'+(assistantContext||'No data loaded yet.')+'\n\nBe concise, specific, and use NZD ($) for amounts. Focus on practical advice.';
+  const sysMsg='You are a trusted business advisor and friend for Erik, owner of Saigon Noon (Vietnamese restaurant, Hamilton NZ, two branches: CBD and Rototuna). You have FULL access to his live data below — always use it directly. Never say you don\'t have access to the data.\n\n'+(assistantContext||'No data loaded yet.')+'\n\nTone: Talk like a knowledgeable friend, not a consultant writing a report. Keep it conversational — short sentences, no headers, no bullet points, no tables unless Erik specifically asks. Use actual dollar figures. Be direct and honest. If something looks bad, say so plainly. End with one clear suggestion when useful.';
   try{
     const r=await fetch(AI_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:sysMsg,messages:chatHistory,max_tokens:600})});
     const d=await r.json(); const resp=d.content?.[0]?.text||'Sorry, no response.';
