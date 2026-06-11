@@ -1599,7 +1599,7 @@ async function updateAssistantSnapshotFull(){
   // Compose full context
   assistantContext=
     'RESTAURANT: Saigon Noon, Vietnamese, Hamilton NZ. Two branches: CBD and Rototuna.\n'+
-    'TODAY: '+today+' | Current view: '+start+(start!==end?' to '+end:'')+' ('+period+')\n\n'+
+    'TODAY: '+today+' ('+DAYS[new Date().getDay()]+') | Current view: '+start+(start!==end?' to '+end:'')+' ('+period+')\n\n'+
     'MONTHLY PERFORMANCE:\n'+
     '  '+monthSummary(salesTM,invTM,'This month (so far)')+'\n'+
     '  '+monthSummary(salesLM,invLM,'Last month')+'\n'+
