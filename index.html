@@ -1481,9 +1481,10 @@ async function updateAssistantSnapshotFull(){
     if(!item.item_name) return;
     const wk=item.date>=weekStart?'This week':'Last week';
     const key=(item.branch||'?')+'|'+wk+'|'+item.item_name.trim().toLowerCase();
-    if(!itemAgg[key]) itemAgg[key]={branch:item.branch||'?',wk,desc:item.item_name.trim(),qty:0,unit:item.unit||'',amt:0,supplier:item.supplier||''};
+    if(!itemAgg[key]) itemAgg[key]={branch:item.branch||'?',wk,desc:item.item_name.trim(),qty:0,unit:item.unit||'',unitPrice:0,amt:0,supplier:item.supplier||''};
     itemAgg[key].qty+=Number(item.qty)||0;
-    itemAgg[key].amt+=Number(item.amount)||0;
+    itemAgg[key].amt+=Number(item.total_price)||0;
+    if(item.unit_price) itemAgg[key].unitPrice=Number(item.unit_price)||0;
   });
   // Format ingredient context
   let itemsCtx='';
@@ -1497,7 +1498,8 @@ async function updateAssistantSnapshotFull(){
         itemsCtx+=wk.toUpperCase()+' - '+br+':\n';
         rows.forEach(e=>{
           const q=e.qty>0?' | qty: '+e.qty+(e.unit?' '+e.unit:''):'';
-          itemsCtx+='  '+e.desc+q+' | '+nzd(e.amt)+(e.supplier?' ('+e.supplier+')':'')+' \n';
+          const up=e.unitPrice>0?' @ '+nzd(e.unitPrice)+'/unit':'';
+          itemsCtx+='  '+e.desc+q+up+' | total: '+nzd(e.amt)+(e.supplier?' ('+e.supplier+')':'')+' \n';
         });
       });
     });
@@ -1556,6 +1558,44 @@ async function updateAssistantSnapshotFull(){
   // Current period snapshot
   const {start,end}=getDateRange();
   updateAssistantSnapshot();
+  // Daily sales + food cost by branch (last 30 days) — so AI can answer specific-date questions
+  const d30ago=localDateStr(new Date(Date.now()-30*864e5));
+  const sales30=sales90.filter(r=>r.date>=d30ago);
+  const inv30=inv90.filter(r=>r.date>=d30ago);
+  const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  // Build date→{CBD,Rototuna} sales map
+  const dailyMap={};
+  sales30.forEach(r=>{
+    if(!dailyMap[r.date]) dailyMap[r.date]={CBD:0,Rototuna:0};
+    if(r.branch==='CBD') dailyMap[r.date].CBD+=(Number(r.net_total)||0);
+    else if(r.branch==='Rototuna') dailyMap[r.date].Rototuna+=(Number(r.net_total)||0);
+  });
+  const dailyDates=Object.keys(dailyMap).sort().reverse();
+  const dailyCtx='DAILY SALES BY BRANCH (last 30 days, newest first):\n'+
+    dailyDates.map(d=>{
+      const day=DAYS[new Date(d+'T12:00:00').getDay()];
+      const c=dailyMap[d];
+      return '  '+d+' ('+day+'): CBD '+nzd(c.CBD)+', Rototuna '+nzd(c.Rototuna)+', Combined '+nzd(c.CBD+c.Rototuna);
+    }).join('\n')+'\n\n';
+  // Build date→{CBD,Rototuna} food cost map
+  const dailyFoodMap={};
+  inv30.forEach(r=>{
+    if(!dailyFoodMap[r.date]) dailyFoodMap[r.date]={CBD:0,Rototuna:0};
+    if(r.branch==='CBD') dailyFoodMap[r.date].CBD+=(Number(r.amount)||0);
+    else if(r.branch==='Rototuna') dailyFoodMap[r.date].Rototuna+=(Number(r.amount)||0);
+  });
+  const invDates=Object.keys(dailyFoodMap).sort().reverse();
+  const dailyFoodCtx=invDates.length>0
+    ? 'DAILY FOOD COST BY BRANCH (last 30 days, newest first):\n'+
+      invDates.map(d=>{
+        const day=DAYS[new Date(d+'T12:00:00').getDay()];
+        const f=dailyFoodMap[d];
+        const sales=dailyMap[d]||{CBD:0,Rototuna:0};
+        const cbdPct=sales.CBD?(f.CBD/sales.CBD*100).toFixed(1)+'%':'—';
+        const rotPct=sales.Rototuna?(f.Rototuna/sales.Rototuna*100).toFixed(1)+'%':'—';
+        return '  '+d+' ('+day+'): CBD '+nzd(f.CBD)+' ('+cbdPct+'), Rototuna '+nzd(f.Rototuna)+' ('+rotPct+')';
+      }).join('\n')+'\n\n'
+    : 'DAILY FOOD COST: No invoice data in last 30 days.\n\n';
   // Compose full context
   assistantContext=
     'RESTAURANT: Saigon Noon, Vietnamese, Hamilton NZ. Two branches: CBD and Rototuna.\n'+
@@ -1564,6 +1604,8 @@ async function updateAssistantSnapshotFull(){
     '  '+monthSummary(salesTM,invTM,'This month (so far)')+'\n'+
     '  '+monthSummary(salesLM,invLM,'Last month')+'\n'+
     '  '+monthSummary(salesP2,invP2,'2 months ago')+'\n\n'+
+    dailyCtx+
+    dailyFoodCtx+
     'THIS WEEK SUPPLIER SPEND BY BRANCH ('+weekStart+' to '+today+'):\n'+
     '  CBD total: '+nzd(twCBDtotal)+' | '+twCBD+'\n'+
     '  Rototuna total: '+nzd(twROTtotal)+' | '+twROT+'\n\n'+
@@ -1638,7 +1680,7 @@ async function sendChat(){
   const inp=$('chatInput'), q=inp.value.trim(); if(!q) return;
   inp.value=''; chatHistory.push({role:'user',content:q}); appendMsg('user',q); appendMsg('assistant','Thinking…','loading'); $('chatSendBtn').disabled=true;
   const ctx=assistantContext||'No restaurant data loaded yet — ask Erik to refresh the page.';
-  const instruction='You are a data assistant for Erik, owner of Saigon Noon restaurant in Hamilton NZ (two branches: CBD and Rototuna).\n\nYou have his live restaurant data below. Read numbers directly from the data — never estimate.\n\nLIVE DATA:\n'+ctx+'\n\nSTRICT RULES:\n1. If Erik asks for a number, answer in ONE sentence with ONLY that number. Nothing else.\n2. Never add comparisons, observations, or suggestions unless Erik asks.\n3. No markdown — no bold, no asterisks, no bullet points, no headers.\n4. If the exact number is not in the data, say so in one sentence only.\nExamples: Q: what did CBD spend with Service Food this week? A: CBD spent $180 with Service Food this week. Q: food cost? A: Food cost is 28.4% this week.';
+  const instruction='You are a data assistant for Erik, owner of Saigon Noon restaurant in Hamilton NZ (two branches: CBD and Rototuna).\n\nYou have his live restaurant data below. Read numbers directly from the data — never estimate.\n\nLIVE DATA:\n'+ctx+'\n\nDATA DEFINITIONS:\n- unit_price / @ price = cost per single unit (kg, piece, etc.) — use this for "most expensive" or "price per unit" questions.\n- total = total spend on that item — use this for "costs the most" or "biggest spend" questions.\n- qty = quantity purchased.\n\nSTRICT RULES:\n1. If Erik asks for a number, answer in ONE sentence with ONLY that number. Nothing else.\n2. "Most expensive ingredient" means highest unit price, NOT highest total spend.\n3. "Which costs the most" means highest total spend.\n4. Never add comparisons, observations, or suggestions unless Erik asks.\n5. No markdown — no bold, no asterisks, no bullet points, no headers.\n6. If the exact number is not in the data, say so in one sentence only.\nExamples: Q: most expensive ingredient? A: Beef tenderloin is the most expensive at $32.50/kg. Q: what costs the most in total? A: Beef cannon bone costs the most in total at $480 this week.';
   const apiMessages=[{role:'user',content:instruction},{role:'assistant',content:'Got it, I have the live data. What would you like to know?'},...chatHistory];
   try{
     const r=await fetch(AI_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:apiMessages,max_tokens:300})});
