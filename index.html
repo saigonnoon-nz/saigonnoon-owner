@@ -240,8 +240,8 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 .new-rtable .day-total td { background:#1a2236; padding:7px 4px; font-size:11px; font-weight:600; color:#f1f5f9; text-align:center; border-bottom:none; border-top:2px solid rgba(255,255,255,.35); vertical-align:middle; }
 .new-rtable .day-total td.nc { font-size:10px; font-weight:500; color:#64748b; background:#141e30; }
 .new-rtable .day-total td.wc { font-size:12px; font-weight:700; color:#f1f5f9; border-left:2px solid rgba(255,255,255,.35); }
-.am-slot { height:26px; display:flex; align-items:center; justify-content:center; border-bottom:1px dashed rgba(255,255,255,.3); }
-.pm-slot { height:26px; display:flex; align-items:center; justify-content:center; }
+.am-slot { height:24px; display:flex; align-items:center; justify-content:center; border-bottom:1px solid rgba(255,255,255,.2); }
+.pm-slot { height:24px; display:flex; align-items:center; justify-content:center; }
 .chip { padding:3px 6px; border-radius:4px; font-size:9px; font-weight:700; white-space:nowrap; display:inline-block; letter-spacing:.2px; }
 .chip.cb { background:#3b82f6; color:#fff; }
 .chip.cg { background:#10b981; color:#fff; }
@@ -632,8 +632,8 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
     <div class="sub-tab active" id="stab-cbd" onclick="setLabourTab('cbd')">🏪 CBD Roster</div>
     <div class="sub-tab" id="stab-rot" onclick="setLabourTab('rot')">🏘 Rototuna Roster</div>
   </div>
-  <div id="labour-cbd"><div class="card"><div class="card-title">CBD Roster — Mon to Sat <span class="accent" style="font-size:10px;font-weight:400">Tab · Enter to save</span></div><div class="roster-wrap"><table class="roster-tbl" id="rosterCBD"></table></div><div class="roster-footer" id="rfCBD"></div></div></div>
-  <div id="labour-rot" style="display:none"><div class="card"><div class="card-title">Rototuna Roster — 7 Days <span class="accent" style="font-size:10px;font-weight:400">Tab · Enter to save</span></div><div class="roster-wrap"><table class="roster-tbl" id="rosterROT"></table></div><div class="roster-footer" id="rfROT"></div></div></div>
+  <div id="labour-cbd"><div class="card"><div class="card-title">CBD Roster — Mon to Sat <span class="accent" style="font-size:10px;font-weight:400">Tab · Enter to save</span></div><div id="rosterCBD"></div><div class="roster-footer" id="rfCBD"></div></div></div>
+  <div id="labour-rot" style="display:none"><div class="card"><div class="card-title">Rototuna Roster — 7 Days <span class="accent" style="font-size:10px;font-weight:400">Tab · Enter to save</span></div><div id="rosterROT"></div><div class="roster-footer" id="rfROT"></div></div></div>
 </div>
 
 <!-- STAFF -->
