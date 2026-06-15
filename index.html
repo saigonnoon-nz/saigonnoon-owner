@@ -223,6 +223,17 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 .shift-input.closed { color:var(--amber); font-weight:600; }
 .shift-input.saving { border-color:var(--amber) !important; }
 .shift-input.saved  { border-color:var(--green) !important; }
+.new-rtable { width:100%; border-collapse:collapse; table-layout:fixed; }
+.new-rtable th { padding:8px 4px; text-align:center; font-size:10px; font-weight:600; color:#94a3b8; border-bottom:1px solid rgba(100,116,139,.4); border-right:1px solid rgba(100,116,139,.2); }
+.new-rtable th:last-child { border-right:none; }
+.new-rtable td { border-bottom:1px solid rgba(100,116,139,.2); border-right:1px solid rgba(100,116,139,.2); padding:0; vertical-align:top; }
+.new-rtable td:last-child { border-right:none; }
+.new-rtable tr:last-child td { border-bottom:none; }
+.am-slot { height:26px; display:flex; align-items:center; justify-content:center; border-bottom:1px dashed rgba(100,116,139,.3); }
+.pm-slot { height:26px; display:flex; align-items:center; justify-content:center; }
+.chip-boh { background:#3b82f6; color:#fff; padding:3px 6px; border-radius:4px; font-size:9px; font-weight:700; white-space:nowrap; display:inline-block; }
+.chip-foh { background:#10b981; color:#fff; padding:3px 6px; border-radius:4px; font-size:9px; font-weight:700; white-space:nowrap; display:inline-block; }
+.cell-edit-input { width:92%; background:rgba(15,23,42,.9); border:1px solid rgba(148,163,184,.5); border-radius:4px; color:#f1f5f9; font-size:10px; padding:4px; text-align:center; outline:none; font-family:inherit; display:block; margin:3px auto; box-sizing:border-box; }
 .hours-cell { font-size:10px; color:var(--t3); font-weight:700; margin-top:1px; }
 .roster-footer { display:flex; gap:14px; flex-wrap:wrap; margin-top:12px; padding-top:12px; border-top:1px solid var(--border); }
 .rf-stat { text-align:center; }
@@ -876,7 +887,8 @@ function calcLabour(branch,start,end){
     if(branch==='CBD'&&d.getDay()===0) continue;
     const dow=(d.getDay()+6)%7, dayKey=['mon','tue','wed','thu','fri','sat','sun'][dow];
     if(!days.includes(dayKey)) continue;
-    staff.forEach(s=>{ allRoster.filter(r=>r.staff_id===s.id&&r.branch===branch).forEach(row=>{ const h=shiftHours(row[dayKey]||''); hours+=h; cost+=h*(Number(s.hourly_rate)||0); }); });
+    const closeH=getCloseHour(branch,dayKey);
+    staff.forEach(s=>{ allRoster.filter(r=>r.staff_id===s.id&&r.branch===branch).forEach(row=>{ const h=shiftHoursEx(row[dayKey]||'',closeH); hours+=h; cost+=h*(Number(s.hourly_rate)||0); }); });
   }
   return {cost,hours};
 }
@@ -1255,6 +1267,59 @@ function renderLabour(){
 }
 
 // ══════ RENDER ROSTER TABLE ══════
+function getCloseHour(branch,day){
+  if(branch==='CBD') return day==='mon'?16:21;
+  if(['mon','tue','wed','thu'].includes(day)) return 20.5;
+  return day==='sun'?20:21;
+}
+function fmtT(s){
+  s=(s||'').trim(); if(!s||s.toLowerCase()==='closed') return 'Closed';
+  const p=s.split(':'); return p[0].trim()+':'+(p[1]||'00').trim().padStart(2,'0');
+}
+function fmtSeg(seg){
+  seg=(seg||'').trim(); if(!seg) return '';
+  const p=seg.split('-'); if(p.length<2) return seg;
+  return fmtT(p[0])+'–'+fmtT(p[1]);
+}
+function getAMPM(val){
+  if(!val||!val.trim()) return ['',''];
+  const segs=val.trim().split('/');
+  if(segs.length>=2) return [segs[0].trim(),segs[1].trim()];
+  const startH=parseFloat((val.split('-')[0]||'').replace(':','.'));
+  if(!isNaN(startH)&&startH>=15) return ['',val.trim()];
+  return [val.trim(),''];
+}
+function shiftHoursEx(val,closeH){
+  if(!val||val.trim()===''||val.toLowerCase()==='closed') return 0;
+  return val.split('/').reduce((tot,seg)=>{
+    seg=seg.trim(); const p=seg.split('-'); if(p.length<2) return tot;
+    const s=parseTime(p[0]);
+    const e=p[1].trim().toLowerCase()==='closed'?closeH:parseTime(p[1]);
+    if(s===null||e===null) return tot;
+    return tot+Math.max(0,e-s);
+  },0);
+}
+function editShiftCell(td){
+  const inp=td.querySelector('.cell-edit-input');
+  const disp=td.querySelector('.shift-display');
+  if(!inp||!disp) return;
+  disp.style.display='none'; inp.style.display='block'; inp.focus(); inp.select();
+}
+function saveShiftNew(inp){
+  const td=inp.closest('td');
+  const disp=td.querySelector('.shift-display');
+  const val=inp.value.trim();
+  const sid=inp.dataset.sid, branch=inp.dataset.branch, day=inp.dataset.day, pos=inp.dataset.pos||'BOH';
+  const chipCls=pos==='BOH'?'chip-boh':'chip-foh';
+  const [am,pm]=getAMPM(val);
+  if(disp) disp.innerHTML=
+    '<div class="am-slot">'+(am?'<span class="'+chipCls+'">'+fmtSeg(am)+'</span>':'')+'</div>'+
+    '<div class="pm-slot">'+(pm?'<span class="'+chipCls+'">'+fmtSeg(pm)+'</span>':'')+'</div>';
+  inp.style.display='none'; if(disp) disp.style.display='block';
+  const existing=allRoster.find(r=>r.staff_id==sid&&r.branch===branch&&r.week_start===rosterWeekStart);
+  if(existing){ sbPatch('roster',existing.id,{[day]:val}).then(()=>{existing[day]=val;renderLabour();}).catch(e=>console.error(e)); }
+  else if(val){ sbPost('roster',{staff_id:sid,branch,week_start:rosterWeekStart,[day]:val,shift_num:1}).then(nr=>{if(nr&&nr[0])allRoster.push(nr[0]);renderLabour();}).catch(e=>console.error(e)); }
+}
 function renderRosterTable(branch){
   const tblId=branch==='CBD'?'rosterCBD':'rosterROT';
   const tbl=$(tblId); if(!tbl) return;
@@ -1265,25 +1330,42 @@ function renderRosterTable(branch){
   const boh=staff.filter(s=>s.position==='BOH'), foh=staff.filter(s=>s.position==='FOH');
   const rosterMap={};
   allRoster.filter(r=>r.branch===branch).forEach(r=>{ rosterMap[r.staff_id+'_'+r.shift_num]=r; });
-  let html='<thead><tr><th class="name-col">Staff</th>'+days.map(d=>'<th>'+DAY_LABELS[d]+'<br><span style="font-size:9px;color:var(--t3);font-weight:400">'+(weekDates[d]?.slice(5)||'')+'</span></th>').join('')+'<th>Total</th></tr></thead><tbody>';
-  const renderRows=(arr,grp,color)=>{
+  const DAY_LBL={mon:'Mon',tue:'Tue',wed:'Wed',thu:'Thu',fri:'Fri',sat:'Sat',sun:'Sun'};
+  const ncW=80, wW=70, dayW=`calc((100% - ${ncW}px - ${wW}px) / ${days.length})`;
+  function cellHTML(val,chipCls,sid,br,day,pos){
+    const [am,pm]=getAMPM(val);
+    return `<div class="shift-display"><div class="am-slot">${am?`<span class="${chipCls}">${fmtSeg(am)}</span>`:''}</div><div class="pm-slot">${pm?`<span class="${chipCls}">${fmtSeg(pm)}</span>`:''}</div></div><input class="cell-edit-input" data-sid="${sid}" data-branch="${br}" data-day="${day}" data-pos="${pos}" value="${val||''}" onblur="saveShiftNew(this)" onkeydown="if(event.key==='Enter'||event.key==='Escape')this.blur()" style="display:none">`;
+  }
+  let html=`<div style="border-radius:10px;overflow:hidden;border:1px solid rgba(100,116,139,.4)"><table class="new-rtable"><thead><tr>
+    <th style="width:${ncW}px;text-align:left;padding-left:10px;background:#1a2236;border-right:1px solid rgba(100,116,139,.4)">Staff</th>
+    ${days.map(d=>`<th style="width:${dayW};background:#1a2236">${DAY_LBL[d]}<br><span style="font-size:9px;color:#475569;font-weight:400">${(weekDates[d]||'').slice(5)}</span></th>`).join('')}
+    <th style="width:${wW}px;text-align:right;padding-right:8px;background:#1a2236;border-left:1px solid rgba(100,116,139,.4);border-right:none">Wages</th>
+  </tr></thead><tbody>`;
+  const renderRows=(arr,grp,chipCls)=>{
     if(!arr.length) return;
-    html+='<tr class="section-hdr section-hdr-'+grp+'"><td colspan="'+(days.length+2)+'" style="color:'+color+'">'+grp.toUpperCase()+' — '+branch+'</td></tr>';
-    let dayTotals=Object.fromEntries(days.map(d=>[d,0])), dayPay=Object.fromEntries(days.map(d=>[d,0]));
+    html+=`<tr><td colspan="${days.length+2}" style="font-size:9px;font-weight:600;color:#64748b;letter-spacing:.8px;padding:5px 10px;background:#141e30;border-bottom:1px solid rgba(100,116,139,.2);border-right:none">${grp} — ${branch}</td></tr>`;
+    const dayPay=Object.fromEntries(days.map(d=>[d,0]));
     arr.forEach(s=>{
-      const row=rosterMap[s.id+'_1']||{}; let wkh=0,wkp=0;
-      html+='<tr><td class="name-col" style="cursor:pointer;color:var(--t2)" onclick="openStaffModal(\''+s.id+'\')">'+s.name.split(' ')[0]+'</td>';
-      days.forEach(d=>{ const shift=row[d]||''; const h=shiftHours(shift); wkh+=h; wkp+=h*(Number(s.hourly_rate)||0); dayTotals[d]+=h; dayPay[d]+=h*(Number(s.hourly_rate)||0);
-        html+='<td><input class="shift-input '+(shift?'has-shift':'no-shift')+(shift.toLowerCase()==='closed'?' closed':'')+'" data-sid="'+s.id+'" data-branch="'+branch+'" data-day="'+d+'" value="'+shift+'" onblur="saveShift(this)" onkeydown="shiftKey(event,this)" placeholder="—"></td>'; });
-      html+='<td><div style="font-size:10px;font-weight:700;color:var(--amber)">'+nzd(wkp)+'</div><div class="hours-cell">'+wkh.toFixed(1)+'h</div></td></tr>';
+      const row=rosterMap[s.id+'_1']||{}, rate=Number(s.hourly_rate)||0; let wkWages=0;
+      html+=`<tr>`;
+      html+=`<td style="width:${ncW}px;text-align:left;padding-left:10px;font-size:12px;font-weight:600;color:#e2e8f0;background:#141e30;border-right:1px solid rgba(100,116,139,.4);vertical-align:middle;cursor:pointer" onclick="openStaffModal('${s.id}')">${s.name.split(' ')[0]}</td>`;
+      days.forEach(d=>{
+        const val=(row[d]||'').trim(), closeH=getCloseHour(branch,d), wages=shiftHoursEx(val,closeH)*rate;
+        wkWages+=wages; dayPay[d]+=wages;
+        html+=`<td class="shift-cell" style="vertical-align:top;cursor:pointer" onclick="editShiftCell(this)">${cellHTML(val,chipCls,s.id,branch,d,s.position||'BOH')}</td>`;
+      });
+      html+=`<td style="text-align:right;padding-right:8px;font-size:11px;font-weight:600;color:#f1f5f9;vertical-align:middle;border-left:1px solid rgba(100,116,139,.4)">${nzd(wkWages)}</td></tr>`;
     });
-    html+='<tr class="total-row"><td class="name-col">Subtotal</td>';
-    days.forEach(d=>html+='<td><div style="font-size:10px;font-weight:700;color:var(--amber)">'+(dayPay[d]>0?nzd(dayPay[d]):'')+'</div><div class="hours-cell">'+(dayTotals[d]>0?dayTotals[d].toFixed(1)+'h':'')+'</div></td>');
-    const tp=Object.values(dayPay).reduce((a,b)=>a+b,0), th=Object.values(dayTotals).reduce((a,b)=>a+b,0);
-    html+='<td><div style="font-size:11px;font-weight:800;color:var(--amber)">'+nzd(tp)+'</div><div class="hours-cell">'+th.toFixed(1)+'h</div></td></tr>';
+    const weekTotal=Object.values(dayPay).reduce((a,b)=>a+b,0);
+    html+=`<tr style="background:#1a2236;border-top:1px solid rgba(100,116,139,.4)">
+      <td style="font-size:10px;font-weight:500;color:#64748b;padding:7px 10px;text-align:left;background:#141e30;border-right:1px solid rgba(100,116,139,.4)">Day wages</td>
+      ${days.map(d=>`<td style="font-size:11px;font-weight:600;color:#f1f5f9;padding:7px 4px;text-align:center">${dayPay[d]>0?nzd(dayPay[d]):''}</td>`).join('')}
+      <td style="font-size:12px;font-weight:700;color:#f1f5f9;text-align:right;padding-right:8px;border-left:1px solid rgba(100,116,139,.4)">${nzd(weekTotal)}</td>
+    </tr>`;
   };
-  renderRows(boh,'boh','var(--amber)'); renderRows(foh,'foh','var(--purple)');
-  html+='</tbody>'; tbl.innerHTML=html;
+  renderRows(boh,'BOH','chip-boh'); renderRows(foh,'FOH','chip-foh');
+  html+=`</tbody></table></div>`;
+  tbl.innerHTML=html;
   const rfId=branch==='CBD'?'rfCBD':'rfROT';
   const rws=new Date(rosterWeekStart+'T12:00:00'), rwe=new Date(rws.getTime()+6*864e5);
   const {cost,hours}=calcLabour(branch,localDateStr(rws),localDateStr(rwe));
