@@ -223,16 +223,28 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 .shift-input.closed { color:var(--amber); font-weight:600; }
 .shift-input.saving { border-color:var(--amber) !important; }
 .shift-input.saved  { border-color:var(--green) !important; }
-.new-rtable { width:100%; border-collapse:collapse; table-layout:fixed; }
-.new-rtable th { padding:8px 4px; text-align:center; font-size:10px; font-weight:600; color:#94a3b8; border-bottom:1px solid rgba(100,116,139,.4); border-right:1px solid rgba(100,116,139,.2); }
+.new-rtable { width:100%; border-collapse:collapse; font-size:12px; table-layout:fixed; }
+.new-rtable th { padding:8px 4px; text-align:center; font-size:10px; font-weight:600; color:#94a3b8; background:#1a2236; border-bottom:1px solid rgba(100,116,139,.4); border-right:1px solid rgba(100,116,139,.2); }
 .new-rtable th:last-child { border-right:none; }
-.new-rtable td { border-bottom:1px solid rgba(100,116,139,.2); border-right:1px solid rgba(100,116,139,.2); padding:0; vertical-align:top; }
+.new-rtable th.nh { text-align:left; padding-left:10px; border-right:1px solid rgba(100,116,139,.4); }
+.new-rtable th.wh { text-align:right; padding-right:8px; border-left:1px solid rgba(100,116,139,.4); border-right:none; }
+.new-rtable td { padding:0; text-align:center; border-bottom:1px solid rgba(100,116,139,.2); border-right:1px solid rgba(100,116,139,.2); vertical-align:top; }
 .new-rtable td:last-child { border-right:none; }
 .new-rtable tr:last-child td { border-bottom:none; }
-.am-slot { height:26px; display:flex; align-items:center; justify-content:center; border-bottom:1px dashed rgba(100,116,139,.3); }
-.pm-slot { height:26px; display:flex; align-items:center; justify-content:center; }
-.chip-boh { background:#3b82f6; color:#fff; padding:3px 6px; border-radius:4px; font-size:9px; font-weight:700; white-space:nowrap; display:inline-block; }
-.chip-foh { background:#10b981; color:#fff; padding:3px 6px; border-radius:4px; font-size:9px; font-weight:700; white-space:nowrap; display:inline-block; }
+.new-rtable tr:hover td { background:rgba(100,116,139,.07); }
+.new-rtable tr:hover td.nc { background:#16213a; }
+.new-rtable tr:hover td.wc { background:rgba(100,116,139,.07); }
+.new-rtable td.nc { text-align:left; padding-left:10px; font-size:12px; font-weight:600; color:#e2e8f0; vertical-align:middle; background:#141e30; border-right:1px solid rgba(100,116,139,.4); padding-right:4px; }
+.new-rtable td.wc { text-align:right; padding-right:8px; font-size:11px; font-weight:600; color:#f1f5f9; vertical-align:middle; border-left:1px solid rgba(100,116,139,.4); border-right:none; }
+.new-rtable .slbl td { font-size:9px; font-weight:600; color:#64748b; letter-spacing:.8px; padding:5px 10px; background:#141e30; border-bottom:1px solid rgba(100,116,139,.2); border-right:none; }
+.new-rtable .day-total td { background:#1a2236; padding:7px 4px; font-size:11px; font-weight:600; color:#f1f5f9; text-align:center; border-bottom:none; border-top:1px solid rgba(100,116,139,.4); vertical-align:middle; }
+.new-rtable .day-total td.nc { font-size:10px; font-weight:500; color:#64748b; background:#141e30; }
+.new-rtable .day-total td.wc { font-size:12px; font-weight:700; color:#f1f5f9; border-left:1px solid rgba(100,116,139,.4); }
+.am-slot { height:24px; display:flex; align-items:center; justify-content:center; border-bottom:1px dashed rgba(100,116,139,.3); }
+.pm-slot { height:24px; display:flex; align-items:center; justify-content:center; }
+.chip { padding:3px 6px; border-radius:4px; font-size:9px; font-weight:700; white-space:nowrap; display:inline-block; letter-spacing:.2px; }
+.chip.cb { background:#3b82f6; color:#fff; }
+.chip.cg { background:#10b981; color:#fff; }
 .cell-edit-input { width:92%; background:rgba(15,23,42,.9); border:1px solid rgba(148,163,184,.5); border-radius:4px; color:#f1f5f9; font-size:10px; padding:4px; text-align:center; outline:none; font-family:inherit; display:block; margin:3px auto; box-sizing:border-box; }
 .hours-cell { font-size:10px; color:var(--t3); font-weight:700; margin-top:1px; }
 .roster-footer { display:flex; gap:14px; flex-wrap:wrap; margin-top:12px; padding-top:12px; border-top:1px solid var(--border); }
@@ -1310,11 +1322,11 @@ function saveShiftNew(inp){
   const disp=td.querySelector('.shift-display');
   const val=inp.value.trim();
   const sid=inp.dataset.sid, branch=inp.dataset.branch, day=inp.dataset.day, pos=inp.dataset.pos||'BOH';
-  const chipCls=pos==='BOH'?'chip-boh':'chip-foh';
+  const chipCol=pos==='BOH'?'cb':'cg';
   const [am,pm]=getAMPM(val);
   if(disp) disp.innerHTML=
-    '<div class="am-slot">'+(am?'<span class="'+chipCls+'">'+fmtSeg(am)+'</span>':'')+'</div>'+
-    '<div class="pm-slot">'+(pm?'<span class="'+chipCls+'">'+fmtSeg(pm)+'</span>':'')+'</div>';
+    '<div class="am-slot">'+(am?'<span class="chip '+chipCol+'">'+fmtSeg(am)+'</span>':'')+'</div>'+
+    '<div class="pm-slot">'+(pm?'<span class="chip '+chipCol+'">'+fmtSeg(pm)+'</span>':'')+'</div>';
   inp.style.display='none'; if(disp) disp.style.display='block';
   const existing=allRoster.find(r=>r.staff_id==sid&&r.branch===branch&&r.week_start===rosterWeekStart);
   if(existing){ sbPatch('roster',existing.id,{[day]:val}).then(()=>{existing[day]=val;renderLabour();}).catch(e=>console.error(e)); }
@@ -1331,41 +1343,41 @@ function renderRosterTable(branch){
   const rosterMap={};
   allRoster.filter(r=>r.branch===branch).forEach(r=>{ rosterMap[r.staff_id+'_'+r.shift_num]=r; });
   const DAY_LBL={mon:'Mon',tue:'Tue',wed:'Wed',thu:'Thu',fri:'Fri',sat:'Sat',sun:'Sun'};
-  const ncW=80, wW=70, dayW=`calc((100% - ${ncW}px - ${wW}px) / ${days.length})`;
-  function cellHTML(val,chipCls,sid,br,day,pos){
+  const ncW=72, wW=68, dayW=`calc((100% - ${ncW}px - ${wW}px) / ${days.length})`;
+  function cellHTML(val,chipCol,sid,br,day,pos){
     const [am,pm]=getAMPM(val);
-    return `<div class="shift-display"><div class="am-slot">${am?`<span class="${chipCls}">${fmtSeg(am)}</span>`:''}</div><div class="pm-slot">${pm?`<span class="${chipCls}">${fmtSeg(pm)}</span>`:''}</div></div><input class="cell-edit-input" data-sid="${sid}" data-branch="${br}" data-day="${day}" data-pos="${pos}" value="${val||''}" onblur="saveShiftNew(this)" onkeydown="if(event.key==='Enter'||event.key==='Escape')this.blur()" style="display:none">`;
+    return `<div class="shift-display"><div class="am-slot">${am?`<span class="chip ${chipCol}">${fmtSeg(am)}</span>`:''}</div><div class="pm-slot">${pm?`<span class="chip ${chipCol}">${fmtSeg(pm)}</span>`:''}</div></div><input class="cell-edit-input" data-sid="${sid}" data-branch="${br}" data-day="${day}" data-pos="${pos}" value="${val||''}" onblur="saveShiftNew(this)" onkeydown="if(event.key==='Enter'||event.key==='Escape')this.blur()" style="display:none">`;
   }
   let html=`<div style="border-radius:10px;overflow:hidden;border:1px solid rgba(100,116,139,.4)"><table class="new-rtable"><thead><tr>
-    <th style="width:${ncW}px;text-align:left;padding-left:10px;background:#1a2236;border-right:1px solid rgba(100,116,139,.4)">Staff</th>
-    ${days.map(d=>`<th style="width:${dayW};background:#1a2236">${DAY_LBL[d]}<br><span style="font-size:9px;color:#475569;font-weight:400">${(weekDates[d]||'').slice(5)}</span></th>`).join('')}
-    <th style="width:${wW}px;text-align:right;padding-right:8px;background:#1a2236;border-left:1px solid rgba(100,116,139,.4);border-right:none">Wages</th>
+    <th class="nh" style="width:${ncW}px">Staff</th>
+    ${days.map(d=>`<th class="dh" style="width:${dayW}">${DAY_LBL[d]}<br><span style="font-size:9px;color:#475569;font-weight:400">${(weekDates[d]||'').slice(5)}</span></th>`).join('')}
+    <th class="wh" style="width:${wW}px">Wages</th>
   </tr></thead><tbody>`;
-  const renderRows=(arr,grp,chipCls)=>{
+  const renderRows=(arr,grp,chipCol)=>{
     if(!arr.length) return;
-    html+=`<tr><td colspan="${days.length+2}" style="font-size:9px;font-weight:600;color:#64748b;letter-spacing:.8px;padding:5px 10px;background:#141e30;border-bottom:1px solid rgba(100,116,139,.2);border-right:none">${grp} — ${branch}</td></tr>`;
+    html+=`<tr class="slbl"><td colspan="${days.length+2}">${grp} — ${branch}</td></tr>`;
     const dayPay=Object.fromEntries(days.map(d=>[d,0]));
     arr.forEach(s=>{
       const row=rosterMap[s.id+'_1']||{}, row2=rosterMap[s.id+'_2']||{}, rate=Number(s.hourly_rate)||0; let wkWages=0;
       html+=`<tr>`;
-      html+=`<td style="width:${ncW}px;text-align:left;padding-left:10px;font-size:12px;font-weight:600;color:#e2e8f0;background:#141e30;border-right:1px solid rgba(100,116,139,.4);vertical-align:middle;cursor:pointer" onclick="openStaffModal('${s.id}')">${s.name.split(' ')[0]}</td>`;
+      html+=`<td class="nc" style="cursor:pointer" onclick="openStaffModal('${s.id}')">${s.name.split(' ')[0]}</td>`;
       days.forEach(d=>{
         const v1=(row[d]||'').trim(), v2=(row2[d]||'').trim();
         const val=v1&&v2&&!v1.includes('/')?v1+'/'+v2:(v1||v2);
         const closeH=getCloseHour(branch,d), wages=shiftHoursEx(val,closeH)*rate;
         wkWages+=wages; dayPay[d]+=wages;
-        html+=`<td class="shift-cell" style="vertical-align:top;cursor:pointer" onclick="editShiftCell(this)">${cellHTML(val,chipCls,s.id,branch,d,s.position||'BOH')}</td>`;
+        html+=`<td style="cursor:pointer" onclick="editShiftCell(this)">${cellHTML(val,chipCol,s.id,branch,d,s.position||'BOH')}</td>`;
       });
-      html+=`<td style="text-align:right;padding-right:8px;font-size:11px;font-weight:600;color:#f1f5f9;vertical-align:middle;border-left:1px solid rgba(100,116,139,.4)">${nzd(wkWages)}</td></tr>`;
+      html+=`<td class="wc">${nzd(wkWages)}</td></tr>`;
     });
     const weekTotal=Object.values(dayPay).reduce((a,b)=>a+b,0);
-    html+=`<tr style="background:#1a2236;border-top:1px solid rgba(100,116,139,.4)">
-      <td style="font-size:10px;font-weight:500;color:#64748b;padding:7px 10px;text-align:left;background:#141e30;border-right:1px solid rgba(100,116,139,.4)">Day wages</td>
-      ${days.map(d=>`<td style="font-size:11px;font-weight:600;color:#f1f5f9;padding:7px 4px;text-align:center">${dayPay[d]>0?nzd(dayPay[d]):''}</td>`).join('')}
-      <td style="font-size:12px;font-weight:700;color:#f1f5f9;text-align:right;padding-right:8px;border-left:1px solid rgba(100,116,139,.4)">${nzd(weekTotal)}</td>
+    html+=`<tr class="day-total">
+      <td class="nc">Day wages</td>
+      ${days.map(d=>`<td>${dayPay[d]>0?nzd(dayPay[d]):''}</td>`).join('')}
+      <td class="wc">${nzd(weekTotal)}</td>
     </tr>`;
   };
-  renderRows(boh,'BOH','chip-boh'); renderRows(foh,'FOH','chip-foh');
+  renderRows(boh,'BOH','cb'); renderRows(foh,'FOH','cg');
   html+=`</tbody></table></div>`;
   tbl.innerHTML=html;
   const rfId=branch==='CBD'?'rfCBD':'rfROT';
