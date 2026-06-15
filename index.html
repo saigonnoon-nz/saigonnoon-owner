@@ -1736,6 +1736,25 @@ async function updateAssistantSnapshotFull(){
         return '  '+d+' ('+day+'): CBD '+nzd(f.CBD)+' ('+cbdPct+'), Rototuna '+nzd(f.Rototuna)+' ('+rotPct+')';
       }).join('\n')+'\n\n'
     : 'DAILY FOOD COST: No invoice data in last 30 days.\n\n';
+  // Per-day invoice breakdown by supplier (so AI can answer "this Monday vs last Monday Bidfood" etc.)
+  const dailyInvDetail={};
+  inv30.forEach(r=>{
+    if(!r.date||!r.supplier) return;
+    if(!dailyInvDetail[r.date]) dailyInvDetail[r.date]={};
+    const br=r.branch||'?';
+    if(!dailyInvDetail[r.date][br]) dailyInvDetail[r.date][br]=[];
+    dailyInvDetail[r.date][br].push({supplier:r.supplier,amount:Number(r.amount)||0});
+  });
+  const invDetailCtx=Object.keys(dailyInvDetail).length>0
+    ? 'INVOICE DETAIL BY DAY (last 30 days, newest first — use this to compare specific days/suppliers):\n'+
+      Object.keys(dailyInvDetail).sort().reverse().map(d=>{
+        const day=DAYS[new Date(d+'T12:00:00').getDay()];
+        return '  '+d+' ('+day+'):\n'+
+          Object.entries(dailyInvDetail[d]).map(([br,invs])=>
+            '    '+br+': '+invs.map(i=>i.supplier+' '+nzd(i.amount)).join(', ')
+          ).join('\n');
+      }).join('\n')+'\n\n'
+    : '';
   // Compose full context
   assistantContext=
     'RESTAURANT: Saigon Noon, Vietnamese, Hamilton NZ. Two branches: CBD and Rototuna.\n'+
@@ -1746,6 +1765,7 @@ async function updateAssistantSnapshotFull(){
     '  '+monthSummary(salesP2,invP2,'2 months ago')+'\n\n'+
     dailyCtx+
     dailyFoodCtx+
+    invDetailCtx+
     'THIS WEEK SUPPLIER SPEND BY BRANCH ('+weekStart+' to '+today+'):\n'+
     '  CBD total: '+nzd(twCBDtotal)+' | '+twCBD+'\n'+
     '  Rototuna total: '+nzd(twROTtotal)+' | '+twROT+'\n\n'+
