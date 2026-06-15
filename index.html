@@ -224,23 +224,23 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 .shift-input.saving { border-color:var(--amber) !important; }
 .shift-input.saved  { border-color:var(--green) !important; }
 .new-rtable { width:100%; border-collapse:collapse; font-size:12px; table-layout:fixed; }
-.new-rtable th { padding:8px 4px; text-align:center; font-size:10px; font-weight:600; color:#94a3b8; background:#1a2236; border-bottom:1px solid rgba(100,116,139,.4); border-right:1px solid rgba(100,116,139,.2); }
+.new-rtable th { padding:8px 4px; text-align:center; font-size:10px; font-weight:600; color:#94a3b8; background:#1a2236; border-bottom:1px solid rgba(255,255,255,.25); border-right:1px solid rgba(255,255,255,.12); }
 .new-rtable th:last-child { border-right:none; }
-.new-rtable th.nh { text-align:left; padding-left:10px; border-right:1px solid rgba(100,116,139,.4); }
-.new-rtable th.wh { text-align:right; padding-right:8px; border-left:1px solid rgba(100,116,139,.4); border-right:none; }
-.new-rtable td { padding:0; text-align:center; border-bottom:1px solid rgba(100,116,139,.2); border-right:1px solid rgba(100,116,139,.2); vertical-align:top; }
+.new-rtable th.nh { text-align:left; padding-left:10px; border-right:1px solid rgba(255,255,255,.25); }
+.new-rtable th.wh { text-align:right; padding-right:8px; border-left:1px solid rgba(255,255,255,.25); border-right:none; }
+.new-rtable td { padding:0; text-align:center; border-bottom:1px solid rgba(255,255,255,.1); border-right:1px solid rgba(255,255,255,.1); vertical-align:top; }
 .new-rtable td:last-child { border-right:none; }
 .new-rtable tr:last-child td { border-bottom:none; }
-.new-rtable tr:hover td { background:rgba(100,116,139,.07); }
+.new-rtable tr:hover td { background:rgba(255,255,255,.04); }
 .new-rtable tr:hover td.nc { background:#16213a; }
-.new-rtable tr:hover td.wc { background:rgba(100,116,139,.07); }
-.new-rtable td.nc { text-align:left; padding-left:10px; font-size:12px; font-weight:600; color:#e2e8f0; vertical-align:middle; background:#141e30; border-right:1px solid rgba(100,116,139,.4); padding-right:4px; }
-.new-rtable td.wc { text-align:right; padding-right:8px; font-size:11px; font-weight:600; color:#f1f5f9; vertical-align:middle; border-left:1px solid rgba(100,116,139,.4); border-right:none; }
-.new-rtable .slbl td { font-size:9px; font-weight:600; color:#64748b; letter-spacing:.8px; padding:5px 10px; background:#141e30; border-bottom:1px solid rgba(100,116,139,.2); border-right:none; }
-.new-rtable .day-total td { background:#1a2236; padding:7px 4px; font-size:11px; font-weight:600; color:#f1f5f9; text-align:center; border-bottom:none; border-top:1px solid rgba(100,116,139,.4); vertical-align:middle; }
+.new-rtable tr:hover td.wc { background:rgba(255,255,255,.04); }
+.new-rtable td.nc { text-align:left; padding-left:10px; font-size:12px; font-weight:600; color:#e2e8f0; vertical-align:middle; background:#141e30; border-right:1px solid rgba(255,255,255,.25); padding-right:4px; }
+.new-rtable td.wc { text-align:right; padding-right:8px; font-size:11px; font-weight:600; color:#f1f5f9; vertical-align:middle; border-left:1px solid rgba(255,255,255,.25); border-right:none; }
+.new-rtable .slbl td { font-size:9px; font-weight:600; color:#64748b; letter-spacing:.8px; padding:5px 10px; background:#141e30; border-bottom:1px solid rgba(255,255,255,.1); border-right:none; }
+.new-rtable .day-total td { background:#1a2236; padding:7px 4px; font-size:11px; font-weight:600; color:#f1f5f9; text-align:center; border-bottom:none; border-top:1px solid rgba(255,255,255,.25); vertical-align:middle; }
 .new-rtable .day-total td.nc { font-size:10px; font-weight:500; color:#64748b; background:#141e30; }
-.new-rtable .day-total td.wc { font-size:12px; font-weight:700; color:#f1f5f9; border-left:1px solid rgba(100,116,139,.4); }
-.am-slot { height:24px; display:flex; align-items:center; justify-content:center; border-bottom:1px dashed rgba(100,116,139,.3); }
+.new-rtable .day-total td.wc { font-size:12px; font-weight:700; color:#f1f5f9; border-left:1px solid rgba(255,255,255,.25); }
+.am-slot { height:24px; display:flex; align-items:center; justify-content:center; border-bottom:1px dashed rgba(255,255,255,.2); }
 .pm-slot { height:24px; display:flex; align-items:center; justify-content:center; }
 .chip { padding:3px 6px; border-radius:4px; font-size:9px; font-weight:700; white-space:nowrap; display:inline-block; letter-spacing:.2px; }
 .chip.cb { background:#3b82f6; color:#fff; }
@@ -1417,10 +1417,25 @@ async function runRosterScan(){
   const days=rsBranch==='CBD'?CBD_DAYS:ROT_DAYS;
   const staff=allStaff.filter(s=>s.active&&(s.branch===rsBranch||s.branch==='Both'));
   const staffList=staff.map(s=>s.name).join(', ');
-  const prompt='Extract the weekly roster from this image. Known staff: '+staffList+'. Return ONLY valid JSON: {"shifts":[{"name":"Staff Name","day":"mon","shift":"9-17"},...]}, days: '+days.join(',')+'. Rules: (1) Format shifts as "START-END" in 24h e.g. "9-17". (2) Double shifts use slash: "9-14/17-22". (3) ONLY include entries for days the person actually works — omit days they are not working, do NOT include "closed" or "off". No extra text, only JSON.';
+  const prompt=`You are reading a weekly staff roster image for a restaurant.
+
+Known staff members: ${staffList}
+Days to extract: ${days.join(', ')}
+
+Study EVERY cell in the roster carefully — look at each person's row and each day's column.
+
+Return ONLY valid JSON, no other text:
+{"shifts":[{"name":"Staff Name","day":"mon","shift":"9:00-Closed"},{"name":"Staff Name","day":"tue","shift":"9:30-14:00/16:00-Closed"},...]}
+
+CRITICAL RULES:
+1. Time format: always H:MM in 24-hour (e.g. "9:00", "9:30", "14:00", "16:30")
+2. Use the word "Closed" for any shift that ends at closing time (e.g. "9:00-Closed", "16:00-Closed")
+3. SPLIT SHIFT = someone works TWO separate blocks in one day with a break in between. Format as "FIRST-END/SECOND-Closed" e.g. "9:30-14:00/16:00-Closed". Look carefully — if you see TWO time ranges for one person on one day, it is a split shift.
+4. ONLY include days the person actually works. Skip blank/off days completely.
+5. Scan EVERY row and EVERY column — do not miss anyone.`;
   try{
     const imgB64=rsPhotoData.split(',')[1]; const imgMime=rsPhotoData.split(';')[0].split(':')[1]||'image/jpeg';
-    const r=await fetch(AI_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:imgMime,data:imgB64}},{type:'text',text:prompt}]}],max_tokens:1200})});
+    const r=await fetch(AI_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:imgMime,data:imgB64}},{type:'text',text:prompt}]}],max_tokens:2500})});
     const d=await r.json(); if(d.error)throw new Error(d.error.message||d.error); const txt=d.content?.[0]?.text||''; const jsonMatch=txt.match(/\{[\s\S]*\}/); if(!jsonMatch) throw new Error('AI could not read the roster image — try a clearer photo');
     const parsed=JSON.parse(jsonMatch[0]); if(!parsed.shifts?.length) throw new Error('No shifts found');
     // Clear all existing shifts for this branch/week before writing fresh from photo
