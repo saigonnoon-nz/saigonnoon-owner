@@ -1353,31 +1353,28 @@ function renderRosterTable(branch){
     ${days.map(d=>`<th class="dh" style="width:${dayW}">${DAY_LBL[d]}<br><span style="font-size:9px;color:#475569;font-weight:400">${(weekDates[d]||'').slice(5)}</span></th>`).join('')}
     <th class="wh" style="width:${wW}px">Wages</th>
   </tr></thead><tbody>`;
-  const renderRows=(arr,grp,chipCol)=>{
-    if(!arr.length) return;
-    html+=`<tr class="slbl"><td colspan="${days.length+2}">${grp} — ${branch}</td></tr>`;
-    const dayPay=Object.fromEntries(days.map(d=>[d,0]));
-    arr.forEach(s=>{
-      const row=rosterMap[s.id+'_1']||{}, row2=rosterMap[s.id+'_2']||{}, rate=Number(s.hourly_rate)||0; let wkWages=0;
-      html+=`<tr>`;
-      html+=`<td class="nc" style="cursor:pointer" onclick="openStaffModal('${s.id}')">${s.name.split(' ')[0]}</td>`;
-      days.forEach(d=>{
-        const v1=(row[d]||'').trim(), v2=(row2[d]||'').trim();
-        const val=v1&&v2&&!v1.includes('/')?v1+'/'+v2:(v1||v2);
-        const closeH=getCloseHour(branch,d), wages=shiftHoursEx(val,closeH)*rate;
-        wkWages+=wages; dayPay[d]+=wages;
-        html+=`<td style="cursor:pointer" onclick="editShiftCell(this)">${cellHTML(val,chipCol,s.id,branch,d,s.position||'BOH')}</td>`;
-      });
-      html+=`<td class="wc">${nzd(wkWages)}</td></tr>`;
+  const allStaffSorted=[...boh,...foh];
+  const dayPay=Object.fromEntries(days.map(d=>[d,0]));
+  allStaffSorted.forEach(s=>{
+    const chipCol=s.position==='BOH'?'cb':'cg';
+    const row=rosterMap[s.id+'_1']||{}, row2=rosterMap[s.id+'_2']||{}, rate=Number(s.hourly_rate)||0; let wkWages=0;
+    html+=`<tr>`;
+    html+=`<td class="nc" style="cursor:pointer" onclick="openStaffModal('${s.id}')">${s.name.split(' ')[0]}</td>`;
+    days.forEach(d=>{
+      const v1=(row[d]||'').trim(), v2=(row2[d]||'').trim();
+      const val=v1&&v2&&!v1.includes('/')?v1+'/'+v2:(v1||v2);
+      const closeH=getCloseHour(branch,d), wages=shiftHoursEx(val,closeH)*rate;
+      wkWages+=wages; dayPay[d]+=wages;
+      html+=`<td style="cursor:pointer" onclick="editShiftCell(this)">${cellHTML(val,chipCol,s.id,branch,d,s.position||'BOH')}</td>`;
     });
-    const weekTotal=Object.values(dayPay).reduce((a,b)=>a+b,0);
-    html+=`<tr class="day-total">
-      <td class="nc">Day wages</td>
-      ${days.map(d=>`<td>${dayPay[d]>0?nzd(dayPay[d]):''}</td>`).join('')}
-      <td class="wc">${nzd(weekTotal)}</td>
-    </tr>`;
-  };
-  renderRows(boh,'BOH','cb'); renderRows(foh,'FOH','cg');
+    html+=`<td class="wc">${nzd(wkWages)}</td></tr>`;
+  });
+  const weekTotal=Object.values(dayPay).reduce((a,b)=>a+b,0);
+  html+=`<tr class="day-total">
+    <td class="nc">Day wages</td>
+    ${days.map(d=>`<td>${dayPay[d]>0?nzd(dayPay[d]):''}</td>`).join('')}
+    <td class="wc">${nzd(weekTotal)}</td>
+  </tr>`;
   html+=`</tbody></table></div>`;
   tbl.innerHTML=html;
   const rfId=branch==='CBD'?'rfCBD':'rfROT';
