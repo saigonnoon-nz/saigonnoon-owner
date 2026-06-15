@@ -1346,11 +1346,13 @@ function renderRosterTable(branch){
     html+=`<tr><td colspan="${days.length+2}" style="font-size:9px;font-weight:600;color:#64748b;letter-spacing:.8px;padding:5px 10px;background:#141e30;border-bottom:1px solid rgba(100,116,139,.2);border-right:none">${grp} — ${branch}</td></tr>`;
     const dayPay=Object.fromEntries(days.map(d=>[d,0]));
     arr.forEach(s=>{
-      const row=rosterMap[s.id+'_1']||{}, rate=Number(s.hourly_rate)||0; let wkWages=0;
+      const row=rosterMap[s.id+'_1']||{}, row2=rosterMap[s.id+'_2']||{}, rate=Number(s.hourly_rate)||0; let wkWages=0;
       html+=`<tr>`;
       html+=`<td style="width:${ncW}px;text-align:left;padding-left:10px;font-size:12px;font-weight:600;color:#e2e8f0;background:#141e30;border-right:1px solid rgba(100,116,139,.4);vertical-align:middle;cursor:pointer" onclick="openStaffModal('${s.id}')">${s.name.split(' ')[0]}</td>`;
       days.forEach(d=>{
-        const val=(row[d]||'').trim(), closeH=getCloseHour(branch,d), wages=shiftHoursEx(val,closeH)*rate;
+        const v1=(row[d]||'').trim(), v2=(row2[d]||'').trim();
+        const val=v1&&v2&&!v1.includes('/')?v1+'/'+v2:(v1||v2);
+        const closeH=getCloseHour(branch,d), wages=shiftHoursEx(val,closeH)*rate;
         wkWages+=wages; dayPay[d]+=wages;
         html+=`<td class="shift-cell" style="vertical-align:top;cursor:pointer" onclick="editShiftCell(this)">${cellHTML(val,chipCls,s.id,branch,d,s.position||'BOH')}</td>`;
       });
