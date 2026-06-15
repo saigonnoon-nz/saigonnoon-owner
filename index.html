@@ -1320,8 +1320,9 @@ async function runRosterScan(){
   const staffList=staff.map(s=>s.name).join(', ');
   const prompt='Extract the weekly roster from this image. Known staff: '+staffList+'. Return ONLY valid JSON: {"shifts":[{"name":"Staff Name","day":"mon","shift":"9-5"},...]}, days: '+days.join(',')+'. Format shifts as "start-end" 24h or "closed" if off. No extra text.';
   try{
-    const r=await fetch(AI_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:rsPhotoData,messages:[{role:'user',content:prompt}],max_tokens:800})});
-    const d=await r.json(); const txt=d.content?.[0]?.text||''; const jsonMatch=txt.match(/\{[\s\S]*\}/); if(!jsonMatch) throw new Error('No JSON in response');
+    const imgB64=rsPhotoData.split(',')[1]; const imgMime=rsPhotoData.split(';')[0].split(':')[1]||'image/jpeg';
+    const r=await fetch(AI_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:imgMime,data:imgB64}},{type:'text',text:prompt}]}],max_tokens:800})});
+    const d=await r.json(); if(d.error)throw new Error(d.error.message||d.error); const txt=d.content?.[0]?.text||''; const jsonMatch=txt.match(/\{[\s\S]*\}/); if(!jsonMatch) throw new Error('AI could not read the roster image — try a clearer photo');
     const parsed=JSON.parse(jsonMatch[0]); if(!parsed.shifts?.length) throw new Error('No shifts found');
     let saved=0;
     for(const shift of parsed.shifts){
