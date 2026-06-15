@@ -1435,7 +1435,7 @@ CRITICAL RULES:
 5. Scan EVERY row and EVERY column — do not miss anyone.`;
   try{
     const imgB64=rsPhotoData.split(',')[1]; const imgMime=rsPhotoData.split(';')[0].split(':')[1]||'image/jpeg';
-    const r=await fetch(AI_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:imgMime,data:imgB64}},{type:'text',text:prompt}]}],max_tokens:2500})});
+    const r=await fetch(AI_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:imgMime,data:imgB64}},{type:'text',text:prompt}]}],max_tokens:2500})});
     const d=await r.json(); if(d.error)throw new Error(d.error.message||d.error); const txt=d.content?.[0]?.text||''; const jsonMatch=txt.match(/\{[\s\S]*\}/); if(!jsonMatch) throw new Error('AI could not read the roster image — try a clearer photo');
     const parsed=JSON.parse(jsonMatch[0]); if(!parsed.shifts?.length) throw new Error('No shifts found');
     // Clear all existing shifts for this branch/week before writing fresh from photo
