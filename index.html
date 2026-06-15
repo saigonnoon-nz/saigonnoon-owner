@@ -903,20 +903,27 @@ async function loadAll() {
   const d14ago=localDateStr(new Date(Date.now()-14*864e5));
   const lastStart=localDateStr(new Date(new Date(start).getTime()-7*864e5));
   const lastEnd=localDateStr(new Date(new Date(end).getTime()-7*864e5));
-  try {
-    [cachedSales,cachedInvoices,cachedFutureInvoices,cachedLastSales,cachedLastInvoices,allStaff,allRoster]=await Promise.all([
-      sbGet('sales','branch=neq.null&date=gte.'+start+'&date=lte.'+end+'&order=date'),
-      sbGet('invoices','branch=neq.null&date=gte.'+start+'&date=lte.'+end+'&order=date'),
-      sbGet('invoices','supplier=in.(Gilmours,Drinks Supplier,OneStopPak)&date=gte.'+d14ago+'&order=date'),
-      sbGet('sales','branch=neq.null&date=gte.'+lastStart+'&date=lte.'+lastEnd+'&order=date'),
-      sbGet('invoices','branch=neq.null&date=gte.'+lastStart+'&date=lte.'+lastEnd+'&order=date'),
-      sbGet('staff','order=branch,position,name'),
-      sbGet('roster','week_start=eq.'+rosterWeekStart+'&order=branch,shift_num'),
-    ]);
+  const results=await Promise.allSettled([
+    sbGet('sales','branch=neq.null&date=gte.'+start+'&date=lte.'+end+'&order=date'),
+    sbGet('invoices','branch=neq.null&date=gte.'+start+'&date=lte.'+end+'&order=date'),
+    sbGet('invoices','supplier=in.(Gilmours,Drinks Supplier,OneStopPak)&date=gte.'+d14ago+'&order=date'),
+    sbGet('sales','branch=neq.null&date=gte.'+lastStart+'&date=lte.'+lastEnd+'&order=date'),
+    sbGet('invoices','branch=neq.null&date=gte.'+lastStart+'&date=lte.'+lastEnd+'&order=date'),
+    sbGet('staff','order=branch,position,name'),
+    sbGet('roster','week_start=eq.'+rosterWeekStart+'&order=branch,shift_num'),
+  ]);
+  const ok=r=>r.status==='fulfilled'?r.value:[];
+  cachedSales=ok(results[0]); cachedInvoices=ok(results[1]); cachedFutureInvoices=ok(results[2]);
+  cachedLastSales=ok(results[3]); cachedLastInvoices=ok(results[4]);
+  allStaff=ok(results[5]); allRoster=ok(results[6]);
+  const anyFailed=results.some(r=>r.status==='rejected');
+  if(anyFailed){
+    const failNames=['sales','invoices','future inv','last sales','last inv','staff','roster'];
+    const failed=results.map((r,i)=>r.status==='rejected'?failNames[i]:null).filter(Boolean);
+    console.warn('Some data failed to load:',failed.join(', '));
+    $('liveText').textContent='Partial'; $('liveBadge').style.background='rgba(251,191,36,.15)';
+  } else {
     $('liveText').textContent='Live'; $('liveBadge').style.background='rgba(52,211,153,.1)';
-  } catch(e) {
-    $('liveText').textContent='Offline'; console.error(e);
-    allRoster=allRoster||[]; allStaff=allStaff||[];
   }
   updateHeaderStats(); updateRosterWeekLabel();
   renderSplitView(); renderPL(); renderOverview(); renderBranches(); renderFoodCost(); renderLabour(); renderCashFlow();
