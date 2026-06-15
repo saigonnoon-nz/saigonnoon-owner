@@ -859,11 +859,14 @@ function parseTime(str){
   return h+m/60;
 }
 function shiftHours(shiftStr){
-  if(!shiftStr||shiftStr.trim()==='') return 0;
-  const parts=shiftStr.split('-'); if(parts.length<2) return 0;
-  const start=parseTime(parts[0]), end=parseTime(parts[1]);
-  if(start===null||end===null) return 0;
-  return Math.max(0,end-start);
+  if(!shiftStr||shiftStr.trim()===''||shiftStr.toLowerCase()==='closed') return 0;
+  // Support double shifts like "9-14/17-22"
+  return shiftStr.split('/').reduce((total,seg)=>{
+    seg=seg.trim(); const parts=seg.split('-'); if(parts.length<2) return total;
+    const start=parseTime(parts[0]), end=parseTime(parts[1]);
+    if(start===null||end===null) return total;
+    return total+Math.max(0,end-start);
+  },0);
 }
 function calcLabour(branch,start,end){
   let cost=0,hours=0;
@@ -1318,10 +1321,10 @@ async function runRosterScan(){
   const days=rsBranch==='CBD'?CBD_DAYS:ROT_DAYS;
   const staff=allStaff.filter(s=>s.active&&(s.branch===rsBranch||s.branch==='Both'));
   const staffList=staff.map(s=>s.name).join(', ');
-  const prompt='Extract the weekly roster from this image. Known staff: '+staffList+'. Return ONLY valid JSON: {"shifts":[{"name":"Staff Name","day":"mon","shift":"9-5"},...]}, days: '+days.join(',')+'. Format shifts as "start-end" 24h or "closed" if off. No extra text.';
+  const prompt='Extract the weekly roster from this image. Known staff: '+staffList+'. Return ONLY valid JSON: {"shifts":[{"name":"Staff Name","day":"mon","shift":"9-17"},...]}, days: '+days.join(',')+'. Rules: (1) Format each shift as "START-END" in 24h time e.g. "9-17". (2) If someone works a DOUBLE SHIFT on a day, combine with slash: "9-14/17-22". (3) Use "closed" if off. (4) Include ALL staff for ALL days they work — do not skip anyone. No extra text, only JSON.';
   try{
     const imgB64=rsPhotoData.split(',')[1]; const imgMime=rsPhotoData.split(';')[0].split(':')[1]||'image/jpeg';
-    const r=await fetch(AI_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:imgMime,data:imgB64}},{type:'text',text:prompt}]}],max_tokens:800})});
+    const r=await fetch(AI_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:imgMime,data:imgB64}},{type:'text',text:prompt}]}],max_tokens:1200})});
     const d=await r.json(); if(d.error)throw new Error(d.error.message||d.error); const txt=d.content?.[0]?.text||''; const jsonMatch=txt.match(/\{[\s\S]*\}/); if(!jsonMatch) throw new Error('AI could not read the roster image — try a clearer photo');
     const parsed=JSON.parse(jsonMatch[0]); if(!parsed.shifts?.length) throw new Error('No shifts found');
     let saved=0;
