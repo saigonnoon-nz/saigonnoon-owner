@@ -1321,14 +1321,19 @@ async function runRosterScan(){
   const days=rsBranch==='CBD'?CBD_DAYS:ROT_DAYS;
   const staff=allStaff.filter(s=>s.active&&(s.branch===rsBranch||s.branch==='Both'));
   const staffList=staff.map(s=>s.name).join(', ');
-  const prompt='Extract the weekly roster from this image. Known staff: '+staffList+'. Return ONLY valid JSON: {"shifts":[{"name":"Staff Name","day":"mon","shift":"9-17"},...]}, days: '+days.join(',')+'. Rules: (1) Format each shift as "START-END" in 24h time e.g. "9-17". (2) If someone works a DOUBLE SHIFT on a day, combine with slash: "9-14/17-22". (3) Use "closed" if off. (4) Include ALL staff for ALL days they work — do not skip anyone. No extra text, only JSON.';
+  const prompt='Extract the weekly roster from this image. Known staff: '+staffList+'. Return ONLY valid JSON: {"shifts":[{"name":"Staff Name","day":"mon","shift":"9-17"},...]}, days: '+days.join(',')+'. Rules: (1) Format shifts as "START-END" in 24h e.g. "9-17". (2) Double shifts use slash: "9-14/17-22". (3) ONLY include entries for days the person actually works — omit days they are not working, do NOT include "closed" or "off". No extra text, only JSON.';
   try{
     const imgB64=rsPhotoData.split(',')[1]; const imgMime=rsPhotoData.split(';')[0].split(':')[1]||'image/jpeg';
     const r=await fetch(AI_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:imgMime,data:imgB64}},{type:'text',text:prompt}]}],max_tokens:1200})});
     const d=await r.json(); if(d.error)throw new Error(d.error.message||d.error); const txt=d.content?.[0]?.text||''; const jsonMatch=txt.match(/\{[\s\S]*\}/); if(!jsonMatch) throw new Error('AI could not read the roster image — try a clearer photo');
     const parsed=JSON.parse(jsonMatch[0]); if(!parsed.shifts?.length) throw new Error('No shifts found');
+    // Clear all existing shifts for this branch/week before writing fresh from photo
+    const existingRows=allRoster.filter(r=>r.branch===rsBranch&&r.week_start===week);
+    const clearObj=Object.fromEntries(days.map(d=>[d,'']));
+    for(const row of existingRows){ await sbPatch('roster',row.id,clearObj); days.forEach(d=>row[d]=''); }
     let saved=0;
     for(const shift of parsed.shifts){
+      if(!shift.shift||['closed','off',''].includes((shift.shift||'').toLowerCase().trim())) continue;
       const s=staff.find(st=>st.name.toLowerCase().includes(shift.name.toLowerCase().split(' ')[0])); if(!s) continue;
       const existing=allRoster.find(r=>r.staff_id===s.id&&r.branch===rsBranch&&r.week_start===week);
       if(existing){ await sbPatch('roster',existing.id,{[shift.day]:shift.shift}); existing[shift.day]=shift.shift; }
