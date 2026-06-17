@@ -1610,14 +1610,14 @@ async function updateAssistantSnapshotFull(){
       sbGet('invoices','date=gte.'+d90+'&date=lte.'+today+'&order=date'),
     ]);
   }catch(e){ sales90=cachedSales; inv90=cachedInvoices; console.error('AI context fetch failed',e); }
-  // Fetch invoice line items directly by date (invoice_items has its own date+branch fields)
+  // Fetch invoice line items — last 30 days so AI can compare specific days
   const weekStart=getMondayStr(new Date());
   const lastWeekStart=localDateStr(new Date(new Date(weekStart).getTime()-7*864e5));
   let invoiceItems=[];
-  try{ invoiceItems=await sbGet('invoice_items','date=gte.'+lastWeekStart+'&date=lte.'+today+'&order=date,supplier'); }catch(e){ invoiceItems=[]; console.error('invoice_items fetch failed',e); }
-  // Aggregate by branch + week + item_name
+  try{ invoiceItems=await sbGet('invoice_items','date=gte.'+d30+'&date=lte.'+today+'&order=date,supplier'); }catch(e){ invoiceItems=[]; console.error('invoice_items fetch failed',e); }
+  // Weekly aggregate (this week vs last week totals)
   const itemAgg={};
-  invoiceItems.forEach(item=>{
+  invoiceItems.filter(i=>i.date>=lastWeekStart).forEach(item=>{
     if(!item.item_name) return;
     const wk=item.date>=weekStart?'This week':'Last week';
     const key=(item.branch||'?')+'|'+wk+'|'+item.item_name.trim().toLowerCase();
@@ -1626,11 +1626,42 @@ async function updateAssistantSnapshotFull(){
     itemAgg[key].amt+=Number(item.total_price)||0;
     if(item.unit_price) itemAgg[key].unitPrice=Number(item.unit_price)||0;
   });
-  // Format ingredient context
+  // Per-day ingredient detail (so AI can answer specific-date questions like "what chicken on last Wed?")
+  const dailyItemDetail={};
+  invoiceItems.forEach(item=>{
+    if(!item.item_name||!item.date) return;
+    if(!dailyItemDetail[item.date]) dailyItemDetail[item.date]={};
+    const br=item.branch||'?';
+    if(!dailyItemDetail[item.date][br]) dailyItemDetail[item.date][br]=[];
+    dailyItemDetail[item.date][br].push({
+      name:item.item_name.trim(),
+      qty:Number(item.qty)||0,
+      unit:item.unit||'',
+      unitPrice:Number(item.unit_price)||0,
+      total:Number(item.total_price)||0,
+      supplier:item.supplier||''
+    });
+  });
+  const DAYS2=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const dailyItemCtx=Object.keys(dailyItemDetail).length>0
+    ? 'INGREDIENT ORDERS BY DAY (last 30 days — use this for specific day comparisons):\n'+
+      Object.keys(dailyItemDetail).sort().reverse().map(d=>{
+        const day=DAYS2[new Date(d+'T12:00:00').getDay()];
+        return '  '+d+' ('+day+'):\n'+
+          Object.entries(dailyItemDetail[d]).map(([br,items])=>
+            '    '+br+':\n'+items.map(i=>{
+              const q=i.qty>0?' qty:'+i.qty+(i.unit?' '+i.unit:''):'';
+              const up=i.unitPrice>0?' @'+nzd(i.unitPrice)+'/unit':'';
+              return '      '+i.name+q+up+' total:'+nzd(i.total)+(i.supplier?' ('+i.supplier+')':'');
+            }).join('\n')
+          ).join('\n');
+      }).join('\n')+'\n\n'
+    : '';
+  // Format weekly aggregate context
   let itemsCtx='';
   const aggVals=Object.values(itemAgg);
   if(aggVals.length>0){
-    itemsCtx='\nINGREDIENT LINE ITEMS (this week vs last week):\n';
+    itemsCtx='\nINGREDIENT WEEKLY TOTALS (this week vs last week):\n';
     ['CBD','Rototuna'].forEach(br=>{
       ['This week','Last week'].forEach(wk=>{
         const rows=aggVals.filter(e=>e.branch===br&&e.wk===wk).sort((a,b)=>b.amt-a.amt);
@@ -1644,7 +1675,7 @@ async function updateAssistantSnapshotFull(){
       });
     });
   } else {
-    itemsCtx='\nINGREDIENT LINE ITEMS: No scanned line items found for this week / last week.';
+    itemsCtx='\nINGREDIENT WEEKLY TOTALS: No scanned line items found for this week / last week.';
   }
   // Monthly summaries
   function monthSummary(sales, invs, label){
@@ -1780,6 +1811,7 @@ async function updateAssistantSnapshotFull(){
     'CURRENT PERIOD ('+start+(start!==end?' to '+end:'')+'):\n'+
     assistantContext;
   assistantContext+=itemsCtx;
+  assistantContext+=dailyItemCtx;
   $('assistantContextBadge').textContent='✔ Full data loaded (90 days + ingredients)';
   $('assistantSnapshot').textContent=assistantContext;
 }
