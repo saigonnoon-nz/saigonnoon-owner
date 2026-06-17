@@ -1607,14 +1607,14 @@ async function updateAssistantSnapshotFull(){
   try{
     [sales90, inv90]=await Promise.all([
       sbGet('sales','branch=neq.null&date=gte.'+d90+'&date=lte.'+today+'&order=date'),
-      sbGet('invoices','branch=neq.null&date=gte.'+d90+'&date=lte.'+today+'&order=date'),
+      sbGet('invoices','date=gte.'+d90+'&date=lte.'+today+'&order=date'),
     ]);
-  }catch(e){ sales90=cachedSales; inv90=cachedInvoices; }
+  }catch(e){ sales90=cachedSales; inv90=cachedInvoices; console.error('AI context fetch failed',e); }
   // Fetch invoice line items directly by date (invoice_items has its own date+branch fields)
   const weekStart=getMondayStr(new Date());
   const lastWeekStart=localDateStr(new Date(new Date(weekStart).getTime()-7*864e5));
   let invoiceItems=[];
-  try{ invoiceItems=await sbGet('invoice_items','date=gte.'+lastWeekStart+'&date=lte.'+today+'&order=date'); }catch(e){ invoiceItems=[]; }
+  try{ invoiceItems=await sbGet('invoice_items','date=gte.'+lastWeekStart+'&date=lte.'+today+'&order=date,supplier'); }catch(e){ invoiceItems=[]; console.error('invoice_items fetch failed',e); }
   // Aggregate by branch + week + item_name
   const itemAgg={};
   invoiceItems.forEach(item=>{
