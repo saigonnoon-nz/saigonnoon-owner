@@ -1774,15 +1774,15 @@ async function updateAssistantSnapshotFull(){
     if(!dailyInvDetail[r.date]) dailyInvDetail[r.date]={};
     const br=r.branch||'?';
     if(!dailyInvDetail[r.date][br]) dailyInvDetail[r.date][br]=[];
-    dailyInvDetail[r.date][br].push({supplier:r.supplier,amount:Number(r.amount)||0});
+    dailyInvDetail[r.date][br].push({supplier:r.supplier,amount:Number(r.amount)||0,notes:(r.notes||'').trim()});
   });
   const invDetailCtx=Object.keys(dailyInvDetail).length>0
-    ? 'INVOICE DETAIL BY DAY (last 30 days, newest first — use this to compare specific days/suppliers):\n'+
+    ? 'INVOICE DETAIL BY DAY (last 30 days, newest first — notes contain manually entered item details):\n'+
       Object.keys(dailyInvDetail).sort().reverse().map(d=>{
         const day=DAYS[new Date(d+'T12:00:00').getDay()];
         return '  '+d+' ('+day+'):\n'+
           Object.entries(dailyInvDetail[d]).map(([br,invs])=>
-            '    '+br+': '+invs.map(i=>i.supplier+' '+nzd(i.amount)).join(', ')
+            '    '+br+': '+invs.map(i=>i.supplier+' '+nzd(i.amount)+(i.notes?' [notes: '+i.notes+']':'')).join(', ')
           ).join('\n');
       }).join('\n')+'\n\n'
     : '';
