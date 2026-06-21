@@ -1266,9 +1266,11 @@ function renderFoodCost(){
 
 // ══════ RENDER LABOUR ══════
 function renderLabour(){
-  const {start,end}=getDateRange();
-  const {cost:cbdLab,hours:cbdH}=calcLabour('CBD',start,end);
-  const {cost:rotLab,hours:rotH}=calcLabour('Rototuna',start,end);
+  // Always use the roster week (not the period picker) so KPIs match the displayed roster
+  const rws=new Date(rosterWeekStart+'T12:00:00'), rwe=new Date(rws.getTime()+6*864e5);
+  const wStart=localDateStr(rws), wEnd=localDateStr(rwe);
+  const {cost:cbdLab,hours:cbdH}=calcLabour('CBD',wStart,wEnd);
+  const {cost:rotLab,hours:rotH}=calcLabour('Rototuna',wStart,wEnd);
   const cbdNet=sumField(byBranch(cachedSales,'CBD'),'net_total');
   const rotNet=sumField(byBranch(cachedSales,'Rototuna'),'net_total');
   const cbdPct=cbdNet?cbdLab/cbdNet*100:0, rotPct=rotNet?rotLab/rotNet*100:0;
