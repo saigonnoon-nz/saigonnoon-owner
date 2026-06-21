@@ -1853,27 +1853,39 @@ function updateAssistantSnapshot(){
   cachedLastInvoices.forEach(r=>{if(r.supplier) lstSupMap[r.supplier]=(lstSupMap[r.supplier]||0)+(Number(r.amount)||0);});
   const supChange=Object.entries(supMap).map(([s,v])=>{const d=v-(lstSupMap[s]||0);return d!==0?s+(d>0?' +':' ')+nzd(d):null;}).filter(Boolean).slice(0,4).join(', ')||'no change';
   // Build rich context
+  // Last period P&L (for profit comparison)
+  const lastStart=localDateStr(new Date(new Date(start).getTime()-7*864e5));
+  const lastEnd=localDateStr(new Date(new Date(end).getTime()-7*864e5));
+  const lstCbdFood=sumField(byBranch(cachedLastInvoices,'CBD'),'amount');
+  const lstRotFood=sumField(byBranch(cachedLastInvoices,'Rototuna'),'amount');
+  const {cost:lstCbdLab}=calcLabour('CBD',lastStart,lastEnd);
+  const {cost:lstRotLab}=calcLabour('Rototuna',lastStart,lastEnd);
+  const lstCbdFixed=calcFixed('CBD',lastStart,lastEnd);
+  const lstRotFixed=calcFixed('Rototuna',lastStart,lastEnd);
+  const lstCbdProfit=lstCbdNet-lstCbdFood-lstCbdLab-lstCbdFixed;
+  const lstRotProfit=lstRotNet-lstRotFood-lstRotLab-lstRotFixed;
   assistantContext=
     'RESTAURANT: Saigon Noon, Vietnamese, Hamilton NZ. Two branches: CBD and Rototuna.\n'+
-    'PERIOD: '+start+(start!==end?' to '+end:'')+' ('+period+' view)\n\n'+
+    'PERIOD: '+start+(start!==end?' to '+end:'')+' ('+period+' view)\n'+
+    'LAST PERIOD: '+lastStart+(lastStart!==lastEnd?' to '+lastEnd:'')+'\n\n'+
     'SALES THIS PERIOD:\n'+
     '  CBD: net '+nzd(cbdNet)+' (gross '+nzd(cbdGross)+') vs last period '+nzd(lstCbdNet)+' → '+pct(cbdNet,lstCbdNet)+'\n'+
     '  Rototuna: net '+nzd(rotNet)+' (gross '+nzd(rotGross)+') vs last period '+nzd(lstRotNet)+' → '+pct(rotNet,lstRotNet)+'\n'+
     '  Combined: net '+nzd(totalNet)+' vs last period '+nzd(lstTotalNet)+' → '+pct(totalNet,lstTotalNet)+'\n'+
     '  Channels (net after commission): '+chStr+'\n\n'+
     'FOOD COST:\n'+
-    '  CBD: '+nzd(cbdFood)+' ('+(cbdNet?(cbdFood/cbdNet*100).toFixed(1):'0')+'% of net)\n'+
-    '  Rototuna: '+nzd(rotFood)+' ('+(rotNet?(rotFood/rotNet*100).toFixed(1):'0')+'% of net)\n'+
+    '  CBD: '+nzd(cbdFood)+' ('+(cbdNet?(cbdFood/cbdNet*100).toFixed(1):'0')+'% of net) vs last period '+nzd(lstCbdFood)+'\n'+
+    '  Rototuna: '+nzd(rotFood)+' ('+(rotNet?(rotFood/rotNet*100).toFixed(1):'0')+'% of net) vs last period '+nzd(lstRotFood)+'\n'+
     '  Suppliers this period: '+supStr+'\n'+
     '  vs last period changes: '+supChange+'\n\n'+
     'LABOUR:\n'+
-    '  CBD: '+nzd(cbdLab)+' ('+(cbdNet?(cbdLab/cbdNet*100).toFixed(1):'0')+'% of net)\n'+
-    '  Rototuna: '+nzd(rotLab)+' ('+(rotNet?(rotLab/rotNet*100).toFixed(1):'0')+'% of net)\n\n'+
+    '  CBD: '+nzd(cbdLab)+' ('+(cbdNet?(cbdLab/cbdNet*100).toFixed(1):'0')+'% of net) vs last period '+nzd(lstCbdLab)+'\n'+
+    '  Rototuna: '+nzd(rotLab)+' ('+(rotNet?(rotLab/rotNet*100).toFixed(1):'0')+'% of net) vs last period '+nzd(lstRotLab)+'\n\n'+
     'FIXED COSTS: CBD '+nzd(cbdFixed)+', Rototuna '+nzd(rotFixed)+'\n\n'+
     'NET PROFIT:\n'+
-    '  CBD: '+nzd(cbdProfit)+' ('+(cbdNet?(cbdProfit/cbdNet*100).toFixed(1):'0')+'% margin)\n'+
-    '  Rototuna: '+nzd(rotProfit)+' ('+(rotNet?(rotProfit/rotNet*100).toFixed(1):'0')+'% margin)\n'+
-    '  Combined: '+nzd(cbdProfit+rotProfit)+' ('+(totalNet?(((cbdProfit+rotProfit)/totalNet)*100).toFixed(1):'0')+'% margin)';
+    '  CBD: '+nzd(cbdProfit)+' ('+(cbdNet?(cbdProfit/cbdNet*100).toFixed(1):'0')+'% margin) vs last period '+nzd(lstCbdProfit)+' → '+pct(cbdProfit,lstCbdProfit)+'\n'+
+    '  Rototuna: '+nzd(rotProfit)+' ('+(rotNet?(rotProfit/rotNet*100).toFixed(1):'0')+'% margin) vs last period '+nzd(lstRotProfit)+' → '+pct(rotProfit,lstRotProfit)+'\n'+
+    '  Combined: '+nzd(cbdProfit+rotProfit)+' ('+(totalNet?(((cbdProfit+rotProfit)/totalNet)*100).toFixed(1):'0')+'% margin) vs last period '+nzd(lstCbdProfit+lstRotProfit)+' → '+pct(cbdProfit+rotProfit,lstCbdProfit+lstRotProfit);
   $('assistantContextBadge').textContent='✔ Data loaded for '+start+(start!==end?' – '+end:'');
   $('assistantSnapshot').textContent=assistantContext;
 }
