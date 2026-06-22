@@ -1422,30 +1422,33 @@ async function runRosterScan(){
   const days=rsBranch==='CBD'?CBD_DAYS:ROT_DAYS;
   const staff=allStaff.filter(s=>s.active&&(s.branch===rsBranch||s.branch==='Both'));
   const staffList=staff.map(s=>s.name).join(', ');
-  const prompt=`You are reading a weekly staff roster spreadsheet image for a restaurant.
+  const prompt=`You are extracting the weekly roster from a spreadsheet image for a restaurant.
 
-Known staff members: ${staffList}
-Days to extract: ${days.join(', ')}
+Staff to find: ${staffList}
+Day columns to extract: ${days.join(', ')}
 
-ROSTER FORMAT — READ THIS CAREFULLY:
-- Times use DOTS as separators: "9.00" means 9:00, "14.30" means 14:30. Convert all dots to colons in your output.
-- The word "closed" or "Closed" means the shift ends at closing time — keep it as "Closed" in output.
-- SPLIT SHIFTS are shown as TWO SEPARATE ROWS for the SAME PERSON. Example:
-    Row 7:  Melly | 9.30-14.00 | 9.30-16.00 ...  (AM shift row)
-    Row 8:  Melly | 16.00-closed | 17.00-closed ... (PM shift row)
-  When you see the same name on two consecutive rows, COMBINE their shifts per day: "9:30-14:00/16:00-Closed"
-- A person with only ONE row has a single shift that day (no split).
+FORMAT GUIDE:
+- Times use DOTS in the image: "9.00" = 9:00, "14.30" = 14:30. Convert ALL dots to colons in your output.
+- "closed" or "Closed" in the image means the shift ends at closing time — output as "Closed".
+- SPLIT SHIFTS: some people have TWO rows with the same name (AM row + PM row). Example:
+    Row A: Melly | 9.30-14.00 | 9.30-16.00 ...
+    Row B: Melly | 16.00-closed | 17.00-closed ...
+  → Combine into one shift per day: "9:30-14:00/16:00-Closed"
+- ONE row = single continuous shift.
+
+YOUR TASK — go person by person through the Known Staff list:
+For EACH person, look at EVERY day column (${days.join(', ')}) and note what is written in their cell(s).
+Do NOT skip a person. Do NOT skip a column. Monday (mon) is the first data column — include it.
 
 Return ONLY valid JSON, no other text:
-{"shifts":[{"name":"Staff Name","day":"mon","shift":"9:00-Closed"},{"name":"Staff Name","day":"tue","shift":"9:30-14:00/16:00-Closed"},...]}
+{"shifts":[{"name":"Name","day":"mon","shift":"9:00-Closed"},{"name":"Name","day":"tue","shift":"9:30-14:00/16:00-Closed"},...]}
 
-CRITICAL RULES:
-1. Time format: always H:MM using colons (e.g. "9:00", "9:30", "14:00", "16:30"). Convert dots to colons.
+OUTPUT RULES:
+1. Times use colons: "9:00", "9:30", "14:00", "16:30". Convert any dots from the image.
 2. Use "Closed" (capital C) for shifts ending at closing time.
-3. Combine same-person two-row entries into a single split shift: "EARLIER-END/LATER-Closed".
-4. ONLY include days the person actually works — skip blank cells completely.
-5. Scan EVERY row including repeated name rows — do not skip anyone or any row.
-6. Check EVERY column for EVERY person — do not miss a day.`;
+3. Split shifts: join AM and PM with "/", earlier start first: "9:30-14:00/16:00-Closed".
+4. Only include days where the person has a shift — omit blank/empty/off cells.
+5. If a name in the image is unclear, match it to the closest name in the staff list.`;
   try{
     const imgB64=rsPhotoData.split(',')[1]; const imgMime=rsPhotoData.split(';')[0].split(':')[1]||'image/jpeg';
     const r=await fetch(AI_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:imgMime,data:imgB64}},{type:'text',text:prompt}]}],max_tokens:4000})});
