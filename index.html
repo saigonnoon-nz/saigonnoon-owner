@@ -788,6 +788,7 @@ const SB_HDR = { 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY, 'Content-Typ
 let period = 'daily';
 let currentDate = new Date();
 let cachedSales=[], cachedInvoices=[], cachedFutureInvoices=[], cachedLastSales=[], cachedLastInvoices=[], allStaff=[], allRoster=[];
+let rosterLabour={CBD:{cost:0,hours:0},Rototuna:{cost:0,hours:0}}; // single source of truth for weekly labour
 let salesChartInst=null, costChartInst=null, fohbohCBDInst=null, fohbohROTInst=null;
 let bSalesInst={}, bChannelInst={}, supplierChartInst=null, supplierCBDInst=null, supplierROTInst=null;
 let editingStaffId=null, bankRows=null, labourSubTab='cbd';
@@ -892,17 +893,16 @@ function shiftHours(shiftStr){
   },0);
 }
 function calcLabour(branch,start,end){
-  let cost=0,hours=0;
-  const staff=allStaff.filter(s=>s.active&&(s.branch===branch||s.branch==='Both'));
-  const days=branch==='CBD'?CBD_DAYS:ROT_DAYS;
-  for(let d=new Date(start);d<=new Date(end);d.setDate(d.getDate()+1)){
-    if(branch==='CBD'&&d.getDay()===0) continue;
-    const dow=(d.getDay()+6)%7, dayKey=['mon','tue','wed','thu','fri','sat','sun'][dow];
-    if(!days.includes(dayKey)) continue;
-    const closeH=getCloseHour(branch,dayKey);
-    staff.forEach(s=>{ allRoster.filter(r=>r.staff_id===s.id&&r.branch===branch).forEach(row=>{ const h=shiftHoursEx(row[dayKey]||'',closeH); hours+=h; cost+=h*(Number(s.hourly_rate)||0); }); });
+  // Single source of truth: always read from rosterLabour (populated by renderRosterTable)
+  const rl=rosterLabour[branch]||{cost:0,hours:0,day:{},dayHrs:{}};
+  if(start===end){
+    // Daily view: return just that day's labour from the roster
+    const dow=new Date(start+'T12:00:00').getDay();
+    const dk=['sun','mon','tue','wed','thu','fri','sat'][dow];
+    return {cost:(rl.day&&rl.day[dk])||0, hours:(rl.dayHrs&&rl.dayHrs[dk])||0};
   }
-  return {cost,hours};
+  // Weekly or longer: return the full roster week total
+  return {cost:rl.cost,hours:rl.hours};
 }
 function calcFixed(b,s,e){
   let t=0;
@@ -953,7 +953,7 @@ async function loadAll() {
     $('liveText').textContent='Live'; $('liveBadge').style.background='rgba(52,211,153,.1)';
   }
   updateHeaderStats(); updateRosterWeekLabel();
-  renderSplitView(); renderPL(); renderOverview(); renderBranches(); renderFoodCost(); renderLabour(); renderCashFlow();
+  renderLabour(); renderSplitView(); renderPL(); renderOverview(); renderBranches(); renderFoodCost(); renderCashFlow();
   if($('sec-assistant').classList.contains('active')) updateAssistantSnapshotFull();
 }
 function updateHeaderStats(){
@@ -1266,18 +1266,17 @@ function renderFoodCost(){
 
 // ══════ RENDER LABOUR ══════
 function renderLabour(){
-  // Always use the roster week (not the period picker) so KPIs match the displayed roster
-  const rws=new Date(rosterWeekStart+'T12:00:00'), rwe=new Date(rws.getTime()+6*864e5);
-  const wStart=localDateStr(rws), wEnd=localDateStr(rwe);
-  const {cost:cbdLab,hours:cbdH}=calcLabour('CBD',wStart,wEnd);
-  const {cost:rotLab,hours:rotH}=calcLabour('Rototuna',wStart,wEnd);
+  // Render tables first — they populate rosterLabour with the single source of truth
+  renderRosterTable('CBD'); renderRosterTable('Rototuna');
+  // Read the weekly totals directly from rosterLabour
+  const cbdLab=rosterLabour.CBD.cost, cbdH=rosterLabour.CBD.hours;
+  const rotLab=rosterLabour.Rototuna.cost, rotH=rosterLabour.Rototuna.hours;
   const cbdNet=sumField(byBranch(cachedSales,'CBD'),'net_total');
   const rotNet=sumField(byBranch(cachedSales,'Rototuna'),'net_total');
   const cbdPct=cbdNet?cbdLab/cbdNet*100:0, rotPct=rotNet?rotLab/rotNet*100:0;
   $('lkpiCBD').textContent=nzd(cbdLab); $('lkpiCBDsub').textContent=cbdH.toFixed(1)+' hrs · '+cbdPct.toFixed(1)+'% of sales'; setBadge('lkpiCBDbadge',cbdPct,35);
   $('lkpiROT').textContent=nzd(rotLab); $('lkpiROTsub').textContent=rotH.toFixed(1)+' hrs · '+rotPct.toFixed(1)+'% of sales'; setBadge('lkpiROTbadge',rotPct,35);
   $('lkpiHours').textContent=(cbdH+rotH).toFixed(1);
-  renderRosterTable('CBD'); renderRosterTable('Rototuna');
 }
 
 // ══════ RENDER ROSTER TABLE ══════
@@ -1360,6 +1359,7 @@ function renderRosterTable(branch){
     <th class="wh" style="width:${wW}px">Wages</th>
   </tr></thead><tbody>`;
   const dayPay=Object.fromEntries(days.map(d=>[d,0]));
+  const dayHrs=Object.fromEntries(days.map(d=>[d,0]));
   const renderStaffRows=(arr,chipCol)=>{
     arr.forEach(s=>{
       const row=rosterMap[s.id+'_1']||{}, row2=rosterMap[s.id+'_2']||{}, rate=Number(s.hourly_rate)||0; let wkWages=0;
@@ -1368,8 +1368,8 @@ function renderRosterTable(branch){
       days.forEach(d=>{
         const v1=(row[d]||'').trim(), v2=(row2[d]||'').trim();
         let val; if(v1&&v2&&!v1.includes('/')){const s1=parseFloat(v1.split('-')[0].replace(':','.')),s2=parseFloat(v2.split('-')[0].replace(':','.'));val=s1<=s2?v1+'/'+v2:v2+'/'+v1;}else{val=v1||v2;}
-        const closeH=getCloseHour(branch,d), wages=shiftHoursEx(val,closeH)*rate;
-        wkWages+=wages; dayPay[d]+=wages;
+        const closeH=getCloseHour(branch,d), h=shiftHoursEx(val,closeH), wages=h*rate;
+        wkWages+=wages; dayPay[d]+=wages; dayHrs[d]+=h;
         html+=`<td style="cursor:pointer" onclick="editShiftCell(this)">${cellHTML(val,chipCol,s.id,branch,d,s.position||'BOH')}</td>`;
       });
       html+=`<td class="wc">${nzd(wkWages)}</td></tr>`;
@@ -1378,6 +1378,9 @@ function renderRosterTable(branch){
   if(boh.length){ html+=`<tr class="slbl"><td colspan="${days.length+2}">BOH — ${branch}</td></tr>`; renderStaffRows(boh,'cb'); }
   if(foh.length){ html+=`<tr class="slbl"><td colspan="${days.length+2}">FOH — ${branch}</td></tr>`; renderStaffRows(foh,'cg'); }
   const weekTotal=Object.values(dayPay).reduce((a,b)=>a+b,0);
+  const weekHours=Object.values(dayHrs).reduce((a,b)=>a+b,0);
+  // Store as the single source of truth — weekly total + per-day breakdown
+  rosterLabour[branch]={cost:weekTotal,hours:weekHours,day:{...dayPay},dayHrs:{...dayHrs}};
   html+=`<tr class="day-total">
     <td class="nc">Day wages</td>
     ${days.map(d=>`<td>${dayPay[d]>0?nzd(dayPay[d]):''}</td>`).join('')}
@@ -1386,10 +1389,8 @@ function renderRosterTable(branch){
   html+=`</tbody></table></div>`;
   tbl.innerHTML=html;
   const rfId=branch==='CBD'?'rfCBD':'rfROT';
-  const rws=new Date(rosterWeekStart+'T12:00:00'), rwe=new Date(rws.getTime()+6*864e5);
-  const {cost,hours}=calcLabour(branch,localDateStr(rws),localDateStr(rwe));
   const branchNet=sumField(byBranch(cachedSales,branch),'net_total');
-  $(rfId).innerHTML='<div class="rf-stat"><div class="rf-lbl">Total Labour</div><div class="rf-val">'+nzd(cost)+'</div></div><div class="rf-stat"><div class="rf-lbl">Total Hours</div><div class="rf-val">'+hours.toFixed(1)+'h</div></div><div class="rf-stat"><div class="rf-lbl">Labour %</div><div class="rf-val">'+(branchNet?pct(cost,branchNet):'—')+'</div></div>';
+  $(rfId).innerHTML='<div class="rf-stat"><div class="rf-lbl">Total Labour</div><div class="rf-val">'+nzd(weekTotal)+'</div></div><div class="rf-stat"><div class="rf-lbl">Total Hours</div><div class="rf-val">'+weekHours.toFixed(1)+'h</div></div><div class="rf-stat"><div class="rf-lbl">Labour %</div><div class="rf-val">'+(branchNet?pct(weekTotal,branchNet):'—')+'</div></div>';
 }
 
 // ══════ SHIFT INPUT EVENTS ══════
@@ -1455,26 +1456,40 @@ OUTPUT RULES:
     const d=await r.json(); if(d.error)throw new Error(d.error.message||d.error); const txt=d.content?.[0]?.text||''; const jsonMatch=txt.match(/\{[\s\S]*\}/); if(!jsonMatch) throw new Error('AI could not read the roster image — try a clearer photo');
     const parsed=JSON.parse(jsonMatch[0]); if(!parsed.shifts?.length) throw new Error('No shifts found');
     // Clear all existing shifts for this branch/week before writing fresh from photo
+    // Keep only the FIRST row per staff member (deduplicate), delete extras
     const existingRows=allRoster.filter(r=>r.branch===rsBranch&&r.week_start===week);
+    const seenStaff={}, rowsToKeep=[], rowsToDelete=[];
+    for(const row of existingRows){
+      if(!seenStaff[row.staff_id]){ seenStaff[row.staff_id]=true; rowsToKeep.push(row); }
+      else rowsToDelete.push(row);
+    }
+    for(const row of rowsToDelete){ await sbDelete('roster',row.id); allRoster.splice(allRoster.indexOf(row),1); }
     const clearObj=Object.fromEntries(days.map(d=>[d,'']));
-    for(const row of existingRows){ await sbPatch('roster',row.id,clearObj); days.forEach(d=>row[d]=''); }
+    for(const row of rowsToKeep){ await sbPatch('roster',row.id,clearObj); days.forEach(d=>row[d]=''); }
+    // savedRows tracks which row we're writing each staff member's shifts into this scan
+    const savedRows={};
     let saved=0;
     for(const shift of parsed.shifts){
       if(!shift.shift||['closed','off',''].includes((shift.shift||'').toLowerCase().trim())) continue;
       const s=staff.find(st=>st.name.toLowerCase().includes(shift.name.toLowerCase().split(' ')[0])); if(!s) continue;
-      const existing=allRoster.find(r=>r.staff_id===s.id&&r.branch===rsBranch&&r.week_start===week);
-      if(existing){
-        const curVal=(existing[shift.day]||'').trim();
-        let saveVal=shift.shift;
-        if(curVal&&!curVal.includes('/')){
-          // combine: put earlier start first
-          const curStart=parseFloat(curVal.split('-')[0].replace(':','.'));
-          const newStart=parseFloat(shift.shift.split('-')[0].replace(':','.'));
-          saveVal=newStart<curStart?shift.shift+'/'+curVal:curVal+'/'+shift.shift;
+      // Use the row we already designated for this staff member, or find/create one
+      let row=savedRows[s.id];
+      if(!row){
+        row=allRoster.find(r=>r.staff_id===s.id&&r.branch===rsBranch&&r.week_start===week);
+        if(!row){
+          const nr=await sbPost('roster',{staff_id:s.id,branch:rsBranch,week_start:week,shift_num:1});
+          if(nr&&nr[0]){ allRoster.push(nr[0]); row=nr[0]; } else continue;
         }
-        await sbPatch('roster',existing.id,{[shift.day]:saveVal}); existing[shift.day]=saveVal;
+        savedRows[s.id]=row;
       }
-      else{ const nr=await sbPost('roster',{staff_id:s.id,branch:rsBranch,week_start:week,[shift.day]:shift.shift,shift_num:1}); if(nr&&nr[0]) allRoster.push(nr[0]); }
+      const curVal=(row[shift.day]||'').trim();
+      let saveVal=shift.shift;
+      if(curVal&&!curVal.includes('/')){
+        const curStart=parseFloat(curVal.split('-')[0].replace(':','.'));
+        const newStart=parseFloat(shift.shift.split('-')[0].replace(':','.'));
+        saveVal=newStart<curStart?shift.shift+'/'+curVal:curVal+'/'+shift.shift;
+      }
+      await sbPatch('roster',row.id,{[shift.day]:saveVal}); row[shift.day]=saveVal;
       saved++;
     }
     rosterWeekStart=week; $('rsStatus').innerHTML='<span style="color:var(--green)">✔ Saved '+saved+' shifts</span>'; updateRosterWeekLabel(); renderLabour();
