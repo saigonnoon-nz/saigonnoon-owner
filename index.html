@@ -893,16 +893,24 @@ function shiftHours(shiftStr){
   },0);
 }
 function calcLabour(branch,start,end){
-  // Single source of truth: always read from rosterLabour (populated by renderRosterTable)
+  // Single source of truth: read from rosterLabour (populated by renderRosterTable)
   const rl=rosterLabour[branch]||{cost:0,hours:0,day:{},dayHrs:{}};
   if(start===end){
-    // Daily view: return just that day's labour from the roster
+    // Daily: return that specific day's wages from the roster
     const dow=new Date(start+'T12:00:00').getDay();
     const dk=['sun','mon','tue','wed','thu','fri','sat'][dow];
     return {cost:(rl.day&&rl.day[dk])||0, hours:(rl.dayHrs&&rl.dayHrs[dk])||0};
   }
-  // Weekly or longer: return the full roster week total
-  return {cost:rl.cost,hours:rl.hours};
+  // Multi-day: sum each calendar day's wages from the roster day breakdown
+  // e.g. June with 5 Mondays counts Monday's wages 5 times — exact, not approximated
+  let cost=0, hours=0;
+  for(let d=new Date(start+'T12:00:00');d<=new Date(end+'T12:00:00');d.setDate(d.getDate()+1)){
+    if(branch==='CBD'&&d.getDay()===0) continue;
+    const dk=['sun','mon','tue','wed','thu','fri','sat'][d.getDay()];
+    cost+=(rl.day&&rl.day[dk])||0;
+    hours+=(rl.dayHrs&&rl.dayHrs[dk])||0;
+  }
+  return {cost:Math.round(cost*100)/100, hours:Math.round(hours*100)/100};
 }
 function calcFixed(b,s,e){
   let t=0;
