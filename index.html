@@ -595,7 +595,7 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
   <div class="kpi-grid">
     <div class="kpi" style="--glow-col:var(--cbd)"><div class="kpi-glow"></div><div class="kpi-icon">🏪</div><div class="kpi-lbl">CBD Labour</div><div class="kpi-val" id="lkpiCBD">—</div><div class="kpi-sub" id="lkpiCBDsub"></div><div class="kpi-badge" id="lkpiCBDbadge"></div></div>
     <div class="kpi" style="--glow-col:var(--roto)"><div class="kpi-glow"></div><div class="kpi-icon">🏘</div><div class="kpi-lbl">Rototuna Labour</div><div class="kpi-val" id="lkpiROT">—</div><div class="kpi-sub" id="lkpiROTsub"></div><div class="kpi-badge" id="lkpiROTbadge"></div></div>
-    <div class="kpi" style="--glow-col:var(--purple)"><div class="kpi-glow"></div><div class="kpi-icon">⏱️</div><div class="kpi-lbl">Total Hours</div><div class="kpi-val" id="lkpiHours">—</div><div class="kpi-sub">This period</div></div>
+    <div class="kpi" style="--glow-col:var(--purple)"><div class="kpi-glow"></div><div class="kpi-icon">⏱️</div><div class="kpi-lbl">Total Hours</div><div class="kpi-val" id="lkpiHours">—</div><div class="kpi-sub" id="lkpiHoursSub">This week</div></div>
     <div class="kpi" style="--glow-col:var(--amber);cursor:pointer" onclick="toggleRosterScan()"><div class="kpi-glow"></div><div class="kpi-icon">📷</div><div class="kpi-lbl">Scan Roster</div><div class="kpi-val" style="font-size:15px">AI Upload</div><div class="kpi-sub" id="rsScanSub">Tap to open</div></div>
   </div>
   <div class="week-nav">
@@ -1276,15 +1276,18 @@ function renderFoodCost(){
 function renderLabour(){
   // Render tables first — they populate rosterLabour with the single source of truth
   renderRosterTable('CBD'); renderRosterTable('Rototuna');
-  // Read the weekly totals directly from rosterLabour
-  const cbdLab=rosterLabour.CBD.cost, cbdH=rosterLabour.CBD.hours;
-  const rotLab=rosterLabour.Rototuna.cost, rotH=rosterLabour.Rototuna.hours;
+  // Use the selected period (daily/weekly/monthly) so KPIs match the period picker
+  const {start,end}=getDateRange();
+  const {cost:cbdLab,hours:cbdH}=calcLabour('CBD',start,end);
+  const {cost:rotLab,hours:rotH}=calcLabour('Rototuna',start,end);
   const cbdNet=sumField(byBranch(cachedSales,'CBD'),'net_total');
   const rotNet=sumField(byBranch(cachedSales,'Rototuna'),'net_total');
   const cbdPct=cbdNet?cbdLab/cbdNet*100:0, rotPct=rotNet?rotLab/rotNet*100:0;
+  const periodLbl=period==='daily'?'Today':period==='weekly'?'This week':'This month';
   $('lkpiCBD').textContent=nzd(cbdLab); $('lkpiCBDsub').textContent=cbdH.toFixed(1)+' hrs · '+cbdPct.toFixed(1)+'% of sales'; setBadge('lkpiCBDbadge',cbdPct,35);
   $('lkpiROT').textContent=nzd(rotLab); $('lkpiROTsub').textContent=rotH.toFixed(1)+' hrs · '+rotPct.toFixed(1)+'% of sales'; setBadge('lkpiROTbadge',rotPct,35);
   $('lkpiHours').textContent=(cbdH+rotH).toFixed(1);
+  $('lkpiHoursSub').textContent=periodLbl;
 }
 
 // ══════ RENDER ROSTER TABLE ══════
