@@ -997,14 +997,34 @@ function toggleBudgetEdit(){
 }
 function renderBudget(){
   const b=getBudgets();
+  const {start,end}=getDateRange();
+  function tdCount(branch){
+    let c=0;
+    for(let d=new Date(start+'T12:00:00');d<=new Date(end+'T12:00:00');d.setDate(d.getDate()+1)){
+      if(branch==='CBD'&&d.getDay()===0)continue;
+      c++;
+    }
+    return c;
+  }
+  const wkDays={CBD:6,Rototuna:7};
+  const periodLbl=period==='daily'?'daily':period==='weekly'?'weekly':'monthly';
   let html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">';
   ['CBD','Rototuna'].forEach(br=>{
     const col=br==='CBD'?'var(--cbd)':'var(--roto)',bd=b[br]||{};
     const gross=sumField(byBranch(cachedSales,br),'gross_total'),net=sumField(byBranch(cachedSales,br),'net_total'),food=sumField(byBranch(cachedInvoices,br),'amount');
     html+='<div><div style="font-size:10px;font-weight:700;color:'+col+';text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">'+br+'</div>';
     if(!bd.rev&&!bd.foodPct){html+='<div style="color:var(--t3);font-size:12px">No targets — click Edit</div></div>';return;}
-    if(bd.rev){const pv=Math.min(gross/bd.rev*100,150),rc=gross>=bd.rev?'var(--green)':pv>=80?'var(--amber)':'var(--red)';
-      html+='<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span style="color:var(--t3)">Revenue</span><span style="color:'+rc+';font-weight:700">'+nzd(gross)+' / '+nzd(bd.rev)+'</span></div><div style="height:7px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+Math.min(pv,100)+'%;background:'+rc+';border-radius:4px;transition:width .5s"></div></div><div style="font-size:10px;color:var(--t3);margin-top:2px">'+pv.toFixed(0)+'% of target</div></div>';}
+    const td=tdCount(br);
+    if(bd.rev){
+      if(td>0){
+        const scaledRev=Math.round(bd.rev*(td/wkDays[br]));
+        const pv=Math.min(scaledRev?gross/scaledRev*100:0,150),rc=gross>=scaledRev?'var(--green)':pv>=80?'var(--amber)':'var(--red)';
+        const tgtLbl=period==='weekly'?nzd(scaledRev):nzd(scaledRev)+' <span style="color:var(--t3);font-weight:400">(wk: '+nzd(bd.rev)+')</span>';
+        html+='<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span style="color:var(--t3)">Revenue</span><span style="color:'+rc+';font-weight:700">'+nzd(gross)+' / '+tgtLbl+'</span></div><div style="height:7px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+Math.min(pv,100)+'%;background:'+rc+';border-radius:4px;transition:width .5s"></div></div><div style="font-size:10px;color:var(--t3);margin-top:2px">'+pv.toFixed(0)+'% of '+periodLbl+' target</div></div>';
+      } else {
+        html+='<div style="color:var(--t3);font-size:11px;margin-bottom:8px">Revenue — Closed today</div>';
+      }
+    }
     if(bd.foodPct){const fp=net?food/net*100:0,fc=fp>bd.foodPct?'var(--red)':fp>bd.foodPct*0.9?'var(--amber)':'var(--green)';
       html+='<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span style="color:var(--t3)">Food %</span><span style="color:'+fc+';font-weight:700">'+fp.toFixed(1)+'% / target '+bd.foodPct+'%</span></div><div style="height:7px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+Math.min(fp/(bd.foodPct||1)*100,100)+'%;background:'+fc+';border-radius:4px;transition:width .5s"></div></div></div>';}
     html+='</div>';
