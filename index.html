@@ -351,6 +351,7 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 <div class="nav">
   <div class="nav-item active" onclick="showSection('overview',this)">⚡ Overview</div>
   <div class="nav-item" onclick="showSection('branches',this)">📊 P&amp;L</div>
+  <div class="nav-item" onclick="showSection('cashflow',this)">💸 Cash Flow</div>
   <div class="nav-item" onclick="showSection('foodcost',this)">🥗 Food Cost</div>
   <div class="nav-item" onclick="showSection('assistant',this)">🧠 Assistant</div>
   <div class="nav-item" onclick="showSection('labour',this)">📅 Roster</div>
@@ -452,14 +453,16 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
           <div>
             <div style="font-size:10px;font-weight:700;color:var(--cbd);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">CBD</div>
             <label style="font-size:10px;color:var(--t3);display:block;margin-bottom:2px">Weekly Revenue ($)</label>
-            <input id="bgt_cbd_rev" type="number" placeholder="e.g. 8000" style="width:100%;background:var(--s2);border:1px solid var(--border);color:var(--t1);border-radius:6px;padding:6px 9px;font-size:12px;margin-bottom:6px">
+            <input id="bgt_cbd_rev" type="number" placeholder="e.g. 8000" oninput="updateBudgetHints()" style="width:100%;background:var(--s2);border:1px solid var(--border);color:var(--t1);border-radius:6px;padding:6px 9px;font-size:12px;margin-bottom:3px">
+            <div id="bgt_cbd_rev_hint" style="font-size:10px;color:var(--t3);margin-bottom:4px"></div>
             <label style="font-size:10px;color:var(--t3);display:block;margin-bottom:2px">Food Cost % Target</label>
             <input id="bgt_cbd_food_pct" type="number" placeholder="e.g. 30" style="width:100%;background:var(--s2);border:1px solid var(--border);color:var(--t1);border-radius:6px;padding:6px 9px;font-size:12px">
           </div>
           <div>
             <div style="font-size:10px;font-weight:700;color:var(--roto);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Rototuna</div>
             <label style="font-size:10px;color:var(--t3);display:block;margin-bottom:2px">Weekly Revenue ($)</label>
-            <input id="bgt_rot_rev" type="number" placeholder="e.g. 10000" style="width:100%;background:var(--s2);border:1px solid var(--border);color:var(--t1);border-radius:6px;padding:6px 9px;font-size:12px;margin-bottom:6px">
+            <input id="bgt_rot_rev" type="number" placeholder="e.g. 10000" oninput="updateBudgetHints()" style="width:100%;background:var(--s2);border:1px solid var(--border);color:var(--t1);border-radius:6px;padding:6px 9px;font-size:12px;margin-bottom:3px">
+            <div id="bgt_rot_rev_hint" style="font-size:10px;color:var(--t3);margin-bottom:4px"></div>
             <label style="font-size:10px;color:var(--t3);display:block;margin-bottom:2px">Food Cost % Target</label>
             <input id="bgt_rot_food_pct" type="number" placeholder="e.g. 30" style="width:100%;background:var(--s2);border:1px solid var(--border);color:var(--t1);border-radius:6px;padding:6px 9px;font-size:12px">
           </div>
@@ -647,6 +650,7 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 
 <!-- CASH FLOW -->
 <div class="section" id="sec-cashflow">
+  <div id="cashPots"></div>
   <div class="two-col" id="cashflowCards"></div>
   <div class="card"><div class="card-title">Bank Statement Upload</div><div class="upload-zone" onclick="document.getElementById('bankFile').click()"><div style="font-size:28px">📄</div><p>Click to upload CSV bank statement</p></div><input type="file" id="bankFile" accept=".csv" style="display:none" onchange="handleBankUpload(this)"><div id="bankPreview"></div></div>
 </div>
@@ -856,6 +860,7 @@ function showSection(id,el) {
   $('sec-'+id).classList.add('active'); el.classList.add('active');
   if(id==='staff'){renderStaffProfiles();renderFOHBOHCharts();}
   if(id==='salesintel'){const w=$('siWeekDate');if(!w.value)w.value=getMondayStr(new Date());siLoadResults(w.value);}
+  if(id==='cashflow'){ renderCashPots(); try{ if(cachedFutureInvoices) renderCashFlow(); }catch(e){} }
   if(id==='assistant') updateAssistantSnapshotFull();
 }
 function setLabourTab(tab) {
@@ -990,9 +995,16 @@ function saveBudgetTargets(){
   localStorage.setItem('sn_budgets',JSON.stringify(b));
   $('budgetEditPanel').style.display='none'; $('budgetEditBtn').textContent='Edit'; renderBudget();
 }
+function updateBudgetHints(){
+  [['cbd',6,26],['rot',7,30]].forEach(([k,wd,moDay])=>{
+    const v=parseFloat($('bgt_'+k+'_rev').value)||0;
+    const el=$('bgt_'+k+'_rev_hint'); if(!el)return;
+    el.textContent=v>0?'Daily ≈ '+nzd(v/wd)+'  ·  Monthly ≈ '+nzd(v*(moDay/wd)):'';
+  });
+}
 function toggleBudgetEdit(){
   const p=$('budgetEditPanel'),open=p.style.display!=='none';
-  if(!open){const b=getBudgets();['CBD','Rototuna'].forEach(br=>{const k=br==='CBD'?'cbd':'rot',bd=b[br]||{};$('bgt_'+k+'_rev').value=bd.rev||'';$('bgt_'+k+'_food_pct').value=bd.foodPct||'';});}
+  if(!open){const b=getBudgets();['CBD','Rototuna'].forEach(br=>{const k=br==='CBD'?'cbd':'rot',bd=b[br]||{};$('bgt_'+k+'_rev').value=bd.rev||'';$('bgt_'+k+'_food_pct').value=bd.foodPct||'';});updateBudgetHints();}
   p.style.display=open?'none':'block'; $('budgetEditBtn').textContent=open?'Edit':'Cancel';
 }
 function renderBudget(){
@@ -1569,6 +1581,60 @@ async function deleteStaff(){
 }
 
 // ══════ CASH FLOW ══════
+const CASHCFG={ taxAccount:'CBD Saving', rentAccount:'Rototuna Saving', trading:['CBD','Rototuna'], all:['CBD','Rototuna','CBD Saving','Rototuna Saving'], monthlyTax:20100, monthlyRent:10400, floor:3500, sweepTax:0.16, sweepRent:0.08 };
+function cpPot(name,acct,actual,target){
+  const pct=target>0?Math.min(100,Math.round(actual/target*100)):0;
+  const col=actual>=target?'var(--green)':actual>=target*0.8?'var(--amber)':'var(--red)';
+  const word=actual>=target?'On track':actual>=target*0.8?'A little behind':'Behind';
+  const gap=actual>=target?nzd(actual-target)+' ahead':nzd(target-actual)+' short';
+  return '<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:baseline">'
+    +'<div><div style="font-size:15px;font-weight:800;color:var(--t1)">'+name+'</div><div style="font-size:11px;color:var(--t3)">'+acct+'</div></div>'
+    +'<div style="font-size:20px;font-weight:800;color:var(--t1);font-variant-numeric:tabular-nums">'+nzd(actual)+'</div></div>'
+    +'<div style="height:8px;background:var(--s2);border-radius:5px;overflow:hidden;margin:8px 0 5px"><div style="height:100%;width:'+pct+'%;background:'+col+';border-radius:5px"></div></div>'
+    +'<div style="font-size:12px;color:'+col+'">'+word+' · target today '+nzd(target)+' · '+gap+'</div></div>';
+}
+async function renderCashPots(){
+  const host=$('cashPots'); if(!host) return;
+  host.innerHTML='<div class="empty" style="padding:16px">Loading cash flow…</div>';
+  const C=CASHCFG, today=localDateStr(new Date()), firstOfMonth=today.slice(0,8)+'01';
+  let bals=[],sales=[];
+  try{ [bals,sales]=await Promise.all([ sbGet('bank_balances','order=date.asc'), sbGet('sales','date=gte.'+firstOfMonth+'&branch=neq.null') ]); }
+  catch(e){ host.innerHTML='<div class="empty" style="color:var(--red);padding:16px">Could not load: '+e.message+'</div>'; return; }
+  const latest={}; bals.forEach(b=>{ latest[b.account]={balance:Number(b.balance),date:b.date}; });
+  let todayGross=0,mtd=0; sales.forEach(s=>{ const g=Number(s.gross_total)||0; mtd+=g; if(s.date===today) todayGross+=g; });
+  const dt=new Date(), dim=new Date(dt.getFullYear(),dt.getMonth()+1,0).getDate(), dom=dt.getDate(), frac=dom/dim;
+  const taxA=latest[C.taxAccount]?latest[C.taxAccount].balance:0, rentA=latest[C.rentAccount]?latest[C.rentAccount].balance:0;
+  const taxT=C.monthlyTax*frac, rentT=C.monthlyRent*frac, tSweep=todayGross*C.sweepTax, rSweep=todayGross*C.sweepRent;
+  let h='<div style="font-size:12px;color:var(--t3);margin-bottom:12px">Day '+dom+' of '+dim+' · today\'s sales '+nzd(todayGross)+' · month so far '+nzd(mtd)+'</div>';
+  h+='<div class="card"><div class="card-title">💰 Today\'s Set-Aside <span class="accent">from '+nzd(todayGross)+' sales</span></div>'
+    +'<div class="stat-row"><span class="stat-lbl">→ Taxes pot ('+C.taxAccount+')</span><span class="stat-val">'+nzd(tSweep)+'</span></div>'
+    +'<div class="stat-row"><span class="stat-lbl">→ Rent pot ('+C.rentAccount+')</span><span class="stat-val">'+nzd(rSweep)+'</span></div>'
+    +'<div class="stat-row" style="border-top:1px solid var(--border);margin-top:4px;padding-top:6px"><span class="stat-lbl" style="font-weight:800">Total to move</span><span class="stat-val" style="color:var(--amber)">'+nzd(tSweep+rSweep)+'</span></div></div>';
+  h+='<div class="card"><div class="card-title">🫙 Not-Mine Pots <span class="accent">toward month-end</span></div>'+cpPot('Taxes',C.taxAccount,taxA,taxT)+cpPot('Rent',C.rentAccount,rentA,rentT)+'</div>';
+  h+='<div class="card"><div class="card-title">🛟 Friday Floor Check <span class="accent">keep above '+nzd(C.floor)+'</span></div>';
+  C.trading.forEach(a=>{ const b=latest[a]?latest[a].balance:null, ok=b!==null&&b>=C.floor;
+    h+='<div class="stat-row"><span class="stat-lbl">'+a+' · '+(b===null?'no balance yet':nzd(b))+'</span><span class="stat-val" style="color:'+(ok?'var(--green)':'var(--red)')+'">'+(ok?'✔ above floor':'⚠ below floor')+'</span></div>'; });
+  h+='</div>';
+  h+='<div class="card"><div class="card-title">✏️ Update This Morning\'s Balances</div>';
+  C.all.forEach(a=>{ const last=latest[a], id='cpin-'+a.replace(/ /g,'_');
+    h+='<div style="margin-bottom:9px"><label style="font-size:11px;color:var(--t3);display:block;margin-bottom:3px">'+a+' '+(last?'(last '+nzd(last.balance)+' on '+last.date+')':'(not entered yet)')+'</label>'
+      +'<input id="'+id+'" type="number" inputmode="decimal" step="0.01" placeholder="'+(last?Math.round(last.balance):0)+'" style="width:100%;background:var(--s2);border:1px solid var(--border);color:var(--t1);border-radius:8px;padding:11px;font-size:16px;box-sizing:border-box"></div>'; });
+  h+='<button onclick="saveCashBalances()" style="width:100%;background:var(--amber);color:#0b1220;border:none;border-radius:9px;padding:13px;font-size:15px;font-weight:800;cursor:pointer;margin-top:4px">Save Today</button>';
+  h+='<div id="cpMsg" style="text-align:center;font-size:13px;color:var(--green);margin-top:8px;min-height:16px"></div></div>';
+  host.innerHTML=h;
+}
+async function saveCashBalances(){
+  const today=localDateStr(new Date()), rows=[], msg=$('cpMsg');
+  CASHCFG.all.forEach(a=>{ const el=$('cpin-'+a.replace(/ /g,'_')); if(!el) return; const v=el.value.trim(); if(v!==''&&!isNaN(Number(v))) rows.push({date:today,account:a,balance:Number(v)}); });
+  if(!rows.length){ if(msg)msg.textContent='Enter at least one balance'; return; }
+  if(msg){ msg.style.color='var(--amber)'; msg.textContent='Saving…'; }
+  try{
+    const r=await fetch(SB_URL+'/rest/v1/bank_balances?on_conflict=date,account',{method:'POST',headers:{...SB_HDR,'Prefer':'resolution=merge-duplicates,return=representation'},body:JSON.stringify(rows)});
+    if(!r.ok) throw new Error(await r.text());
+    if(msg){ msg.style.color='var(--green)'; msg.textContent='✔ Saved'; }
+    renderCashPots();
+  }catch(e){ if(msg){ msg.style.color='var(--red)'; msg.textContent='Error: '+e.message; } }
+}
 function renderCashFlow(){
   const future=cachedFutureInvoices;
   $('cashflowCards').innerHTML='<div class="card"><div class="card-title">💸 CBD — Upcoming Invoices</div><div id="cf_CBD"></div></div><div class="card"><div class="card-title">💸 Rototuna — Upcoming Invoices</div><div id="cf_Rototuna"></div></div>';
