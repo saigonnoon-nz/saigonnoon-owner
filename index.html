@@ -1649,15 +1649,18 @@ async function renderForecast(){
   }catch(e){ host.innerHTML='<div class="empty" style="color:var(--red);padding:12px">Plan unavailable: '+e.message+'</div>'; return; }
   var latest={}; bals.forEach(function(b){ if(latest[b.account]===undefined) latest[b.account]=Number(b.balance); });
   var start=0; ['CBD','Rototuna','CBD Saving','Rototuna Saving'].forEach(function(a){ start+=(latest[a]||0); });
+  var today=localDateStr(new Date());
   var ih={}; sales.forEach(function(s){ ih[s.date]=(ih[s.date]||0)+Number(s.inhouse); });
-  var ihk=Object.keys(ih); var inhouse= ihk.length? ihk.reduce(function(a,d){return a+ih[d];},0)/ihk.length : 2800;
+  var todayInhouse= ih[today]||0;
+  var pastD=Object.keys(ih).filter(function(d){ return d<today; });
+  var inhouse= pastD.length? pastD.reduce(function(a,d){return a+ih[d];},0)/pastD.length : 2600;
   var UBER=4500, DOOR=2500, BNO=150, OTHER=650;
-  var billMap={}; var today=localDateStr(new Date());
+  var billMap={};
   bills.forEach(function(b){ var key=(b.date<today?today:b.date); (billMap[key]=billMap[key]||[]).push(b); });
   var runAll=start, minAll=start, run=start, min=start, minDate=today, rows=[];
   for(var i=0;i<=14;i++){
     var d=addDays(today,i); var dt=new Date(d+'T00:00:00'); var dow=dt.getDay();
-    var infl=(dow===0?inhouse*0.5:inhouse) + (dow>=1&&dow<=5?BNO:0) + (dow===2?UBER:0) + (dow===3?DOOR:0);
+    var infl= (i===0)? todayInhouse : ((dow===0?inhouse*0.5:inhouse) + (dow>=1&&dow<=5?BNO:0) + (dow===2?UBER:0) + (dow===3?DOOR:0));
     var todays=(billMap[d]||[]);
     var outAll=OTHER, out=OTHER;
     todays.forEach(function(b){ var a=Number(b.amount); outAll+=a; if(!isDefer(b.name)) out+=a; });
@@ -1674,7 +1677,7 @@ async function renderForecast(){
   var h='<div class="card" style="border-color:'+color+'">'
     +'<div style="display:flex;justify-content:space-between;align-items:center"><div class="card-title" style="margin:0">📋 Payment Plan (2 weeks)</div><div style="font-weight:800;color:'+color+'">'+status+'</div></div>'
     +'<div style="font-size:12px;color:var(--t3);margin:8px 0 4px">Cash now '+nzd(start)+' · plan low point '+nzd(min)+' on '+minDate+'</div>'
-    +'<div style="font-size:12.5px;color:'+color+';margin-bottom:10px">Paying everything on time would bottom at '+nzd(minAll)+'. Deferring the ⏳ items (GST + Rototuna rent) keeps the plan near '+nzd(min)+' — hold drawings at zero until mid-Aug.</div>';
+    +'<div style="font-size:12.5px;color:'+color+';margin-bottom:10px">Pay-everything low point: '+nzd(minAll)+'. Even deferring the ⏳ items, the plan dips to '+nzd(min)+' near month-end — stagger CBD rent a few days too and hold all drawings until it recovers (~4 Aug).</div>';
   var shown=0;
   rows.forEach(function(r){
     if(!r.bills.length) return; shown++;
