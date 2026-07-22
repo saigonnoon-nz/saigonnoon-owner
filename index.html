@@ -650,11 +650,10 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 
 <!-- CASH FLOW -->
 <div class="section" id="sec-cashflow">
+  <div id="cashForecast"></div>
   <div id="cashPots"></div>
   <div id="cashRecon"></div>
   <div id="cashTxns"></div>
-  <div class="two-col" id="cashflowCards"></div>
-  <div class="card"><div class="card-title">Bank Statement Upload</div><div class="upload-zone" onclick="document.getElementById('bankFile').click()"><div style="font-size:28px">📄</div><p>Click to upload CSV bank statement</p></div><input type="file" id="bankFile" accept=".csv" style="display:none" onchange="handleBankUpload(this)"><div id="bankPreview"></div></div>
 </div>
 
 <!-- SALES INTEL -->
@@ -862,7 +861,7 @@ function showSection(id,el) {
   $('sec-'+id).classList.add('active'); el.classList.add('active');
   if(id==='staff'){renderStaffProfiles();renderFOHBOHCharts();}
   if(id==='salesintel'){const w=$('siWeekDate');if(!w.value)w.value=getMondayStr(new Date());siLoadResults(w.value);}
-  if(id==='cashflow'){ renderCashPots(); renderReconcile(); renderCashTxns(); try{ if(cachedFutureInvoices) renderCashFlow(); }catch(e){} }
+  if(id==='cashflow'){ renderForecast(); renderCashPots(); renderReconcile(); renderCashTxns(); }
   if(id==='assistant') updateAssistantSnapshotFull();
 }
 function setLabourTab(tab) {
@@ -1636,6 +1635,61 @@ async function saveCashBalances(){
     if(msg){ msg.style.color='var(--green)'; msg.textContent='✔ Saved'; }
     renderCashPots();
   }catch(e){ if(msg){ msg.style.color='var(--red)'; msg.textContent='Error: '+e.message; } }
+}
+function addDays(str,n){ var d=new Date(str+'T00:00:00'); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
+function isDefer(n){ return /defer|grace/i.test(n||''); }
+async function renderForecast(){
+  var host=$('cashForecast'); if(!host) return;
+  host.innerHTML='<div class="empty" style="padding:12px">Building plan…</div>';
+  var bals=[], bills=[], sales=[];
+  try{
+    var since=localDateStr(new Date(Date.now()-7*864e5));
+    var res=await Promise.all([ sbGet('bank_balances','order=date.desc&limit=20'), sbGet('upcoming_bills','paid=eq.false&order=date.asc'), sbGet('sales','date=gte.'+since+'&branch=neq.null') ]);
+    bals=res[0]; bills=res[1]; sales=res[2];
+  }catch(e){ host.innerHTML='<div class="empty" style="color:var(--red);padding:12px">Plan unavailable: '+e.message+'</div>'; return; }
+  var latest={}; bals.forEach(function(b){ if(latest[b.account]===undefined) latest[b.account]=Number(b.balance); });
+  var start=0; ['CBD','Rototuna','CBD Saving','Rototuna Saving'].forEach(function(a){ start+=(latest[a]||0); });
+  var ih={}; sales.forEach(function(s){ ih[s.date]=(ih[s.date]||0)+Number(s.inhouse); });
+  var ihk=Object.keys(ih); var inhouse= ihk.length? ihk.reduce(function(a,d){return a+ih[d];},0)/ihk.length : 2800;
+  var UBER=4500, DOOR=2500, BNO=150, OTHER=650;
+  var billMap={}; var today=localDateStr(new Date());
+  bills.forEach(function(b){ var key=(b.date<today?today:b.date); (billMap[key]=billMap[key]||[]).push(b); });
+  var runAll=start, minAll=start, run=start, min=start, minDate=today, rows=[];
+  for(var i=0;i<=14;i++){
+    var d=addDays(today,i); var dt=new Date(d+'T00:00:00'); var dow=dt.getDay();
+    var infl=(dow===0?inhouse*0.5:inhouse) + (dow>=1&&dow<=5?BNO:0) + (dow===2?UBER:0) + (dow===3?DOOR:0);
+    var todays=(billMap[d]||[]);
+    var outAll=OTHER, out=OTHER;
+    todays.forEach(function(b){ var a=Number(b.amount); outAll+=a; if(!isDefer(b.name)) out+=a; });
+    runAll+=infl-outAll; run+=infl-out;
+    if(runAll<minAll) minAll=runAll;
+    if(run<min){ min=run; minDate=d; }
+    rows.push({d:d, dow:dow, bills:todays, bal:run});
+  }
+  var status,color;
+  if(min<-500){ status='DANGER'; color='var(--red)'; }
+  else if(min<2500){ status='TIGHT'; color='var(--amber)'; }
+  else { status='HEALTHY'; color='var(--green)'; }
+  var days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var h='<div class="card" style="border-color:'+color+'">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center"><div class="card-title" style="margin:0">📋 Payment Plan (2 weeks)</div><div style="font-weight:800;color:'+color+'">'+status+'</div></div>'
+    +'<div style="font-size:12px;color:var(--t3);margin:8px 0 4px">Cash now '+nzd(start)+' · plan low point '+nzd(min)+' on '+minDate+'</div>'
+    +'<div style="font-size:12.5px;color:'+color+';margin-bottom:10px">Paying everything on time would bottom at '+nzd(minAll)+'. Deferring the ⏳ items (GST + Rototuna rent) keeps the plan near '+nzd(min)+' — hold drawings at zero until mid-Aug.</div>';
+  var shown=0;
+  rows.forEach(function(r){
+    if(!r.bills.length) return; shown++;
+    h+='<div style="padding:6px 0;border-bottom:1px solid var(--border)">'
+      +'<div style="display:flex;justify-content:space-between;font-size:12px"><span style="font-weight:700;color:var(--t2)">'+days[r.dow]+' '+r.d+'</span><span style="color:'+(r.bal<0?'var(--red)':'var(--green)')+'">running '+nzd(r.bal)+'</span></div>';
+    r.bills.forEach(function(b){
+      var df=isDefer(b.name);
+      h+='<div class="stat-row" style="padding:2px 0"><span class="stat-lbl" style="'+(df?'color:var(--amber)':'')+'">'+(df?'⏳ ':'▾ ')+b.name+'</span><span class="stat-val" style="'+(df?'color:var(--amber)':'')+'">'+nzd(b.amount)+'</span></div>';
+    });
+    h+='</div>';
+  });
+  if(!shown){ h+='<div class="empty" style="padding:6px">No payments scheduled — add them and they will show here.</div>'; }
+  h+='<div style="font-size:11px;color:var(--t3);margin-top:8px">Income assumed: in-house ~'+nzd(inhouse)+'/day · Uber '+nzd(UBER)+' Tue · DoorDash '+nzd(DOOR)+' Wed. Days not listed have nothing to pay. ⏳ = defer to mid-Aug.</div>';
+  h+='</div>';
+  host.innerHTML=h;
 }
 async function renderReconcile(){
   const host=$('cashRecon'); if(!host) return;
