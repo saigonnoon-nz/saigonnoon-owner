@@ -1636,7 +1636,7 @@ async function saveCashBalances(){
     renderCashPots();
   }catch(e){ if(msg){ msg.style.color='var(--red)'; msg.textContent='Error: '+e.message; } }
 }
-function addDays(str,n){ var d=new Date(str+'T00:00:00'); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
+function addDays(str,n){ var d=new Date(str+'T12:00:00'); d.setDate(d.getDate()+n); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
 function isDefer(n){ return /defer|grace/i.test(n||''); }
 async function renderForecast(){
   var host=$('cashForecast'); if(!host) return;
@@ -1659,7 +1659,7 @@ async function renderForecast(){
   bills.forEach(function(b){ var key=(b.date<today?today:b.date); (billMap[key]=billMap[key]||[]).push(b); });
   var runAll=start, minAll=start, run=start, min=start, minDate=today, rows=[];
   for(var i=0;i<=14;i++){
-    var d=addDays(today,i); var dt=new Date(d+'T00:00:00'); var dow=dt.getDay();
+    var d=addDays(today,i); var dt=new Date(d+'T12:00:00'); var dow=dt.getDay();
     var infl= (i===0)? todayInhouse : ((dow===0?inhouse*0.5:inhouse) + (dow>=1&&dow<=5?BNO:0) + (dow===2?UBER:0) + (dow===3?DOOR:0));
     var todays=(billMap[d]||[]);
     var outAll=OTHER, out=OTHER;
