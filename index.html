@@ -1672,7 +1672,7 @@ async function renderCashTxns(){
   const byDate={};
   txns.forEach(t=>{ (byDate[t.date]=byDate[t.date]||[]).push(t); });
   const dates=Object.keys(byDate).sort().reverse().slice(0,5);
-  let h='<div class="card"><div class="card-title">🏦 Where the Money Went <span class="accent">live from ANZ</span></div>';
+  let h='<div class="card"><div class="card-title" style="cursor:pointer" onclick="toggleCashTxns()">🏦 Where the Money Went <span class="accent">tap to expand</span><span id="cashTxnChev" style="float:right;color:var(--t3)">▼</span></div><div id="cashTxnBody" style="display:none">';
   dates.forEach(d=>{
     const rows=byDate[d]; let inSum=0,outSum=0;
     rows.forEach(t=>{ const a=Number(t.amount)||0; if(a>=0)inSum+=a; else outSum+=a; });
@@ -1684,9 +1684,11 @@ async function renderCashTxns(){
       h+='<div class="stat-row"><span class="stat-lbl">'+(inc?'▸ ':'▾ ')+label+' <span style="font-size:10px;color:var(--t3)">'+tag+'</span></span><span class="stat-val" style="color:'+(inc?'var(--green)':'var(--red)')+'">'+(inc?'+':'−')+nzd(Math.abs(a))+'</span></div>';
     });
   });
-  h+='</div>';
+  h+='</div></div>';
   host.innerHTML=h;
 }
+let cashTxnsOpen=false;
+function toggleCashTxns(){ cashTxnsOpen=!cashTxnsOpen; var b=$('cashTxnBody'), c=$('cashTxnChev'); if(b) b.style.display=cashTxnsOpen?'block':'none'; if(c) c.textContent=cashTxnsOpen?'▲':'▼'; }
 function renderCashFlow(){
   const future=cachedFutureInvoices;
   $('cashflowCards').innerHTML='<div class="card"><div class="card-title">💸 CBD — Upcoming Invoices</div><div id="cf_CBD"></div></div><div class="card"><div class="card-title">💸 Rototuna — Upcoming Invoices</div><div id="cf_Rototuna"></div></div>';
