@@ -651,6 +651,8 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 <!-- CASH FLOW -->
 <div class="section" id="sec-cashflow">
   <div id="cashPots"></div>
+  <div id="cashRecon"></div>
+  <div id="cashTxns"></div>
   <div class="two-col" id="cashflowCards"></div>
   <div class="card"><div class="card-title">Bank Statement Upload</div><div class="upload-zone" onclick="document.getElementById('bankFile').click()"><div style="font-size:28px">📄</div><p>Click to upload CSV bank statement</p></div><input type="file" id="bankFile" accept=".csv" style="display:none" onchange="handleBankUpload(this)"><div id="bankPreview"></div></div>
 </div>
@@ -860,7 +862,7 @@ function showSection(id,el) {
   $('sec-'+id).classList.add('active'); el.classList.add('active');
   if(id==='staff'){renderStaffProfiles();renderFOHBOHCharts();}
   if(id==='salesintel'){const w=$('siWeekDate');if(!w.value)w.value=getMondayStr(new Date());siLoadResults(w.value);}
-  if(id==='cashflow'){ renderCashPots(); try{ if(cachedFutureInvoices) renderCashFlow(); }catch(e){} }
+  if(id==='cashflow'){ renderCashPots(); renderReconcile(); renderCashTxns(); try{ if(cachedFutureInvoices) renderCashFlow(); }catch(e){} }
   if(id==='assistant') updateAssistantSnapshotFull();
 }
 function setLabourTab(tab) {
@@ -1615,7 +1617,7 @@ async function renderCashPots(){
   C.trading.forEach(a=>{ const b=latest[a]?latest[a].balance:null, ok=b!==null&&b>=C.floor;
     h+='<div class="stat-row"><span class="stat-lbl">'+a+' · '+(b===null?'no balance yet':nzd(b))+'</span><span class="stat-val" style="color:'+(ok?'var(--green)':'var(--red)')+'">'+(ok?'✔ above floor':'⚠ below floor')+'</span></div>'; });
   h+='</div>';
-  h+='<div class="card"><div class="card-title">✏️ Update This Morning\'s Balances</div>';
+  h+='<div class="card"><div class="card-title">✏️ Balances <span class="accent">auto-synced from your bank</span></div><div style="font-size:11px;color:var(--t3);margin:-4px 0 8px">These now update automatically each morning from ANZ. Only edit to override.</div>';
   C.all.forEach(a=>{ const last=latest[a], id='cpin-'+a.replace(/ /g,'_');
     h+='<div style="margin-bottom:9px"><label style="font-size:11px;color:var(--t3);display:block;margin-bottom:3px">'+a+' '+(last?'(last '+nzd(last.balance)+' on '+last.date+')':'(not entered yet)')+'</label>'
       +'<input id="'+id+'" type="number" inputmode="decimal" step="0.01" placeholder="'+(last?Math.round(last.balance):0)+'" style="width:100%;background:var(--s2);border:1px solid var(--border);color:var(--t1);border-radius:8px;padding:11px;font-size:16px;box-sizing:border-box"></div>'; });
@@ -1634,6 +1636,56 @@ async function saveCashBalances(){
     if(msg){ msg.style.color='var(--green)'; msg.textContent='✔ Saved'; }
     renderCashPots();
   }catch(e){ if(msg){ msg.style.color='var(--red)'; msg.textContent='Error: '+e.message; } }
+}
+async function renderReconcile(){
+  const host=$('cashRecon'); if(!host) return;
+  host.innerHTML='';
+  let bals=[], txns=[];
+  try{ [bals,txns]=await Promise.all([ sbGet('bank_balances','order=date.desc&limit=40'), sbGet('bank_transactions','order=ts.desc&limit=250') ]); }
+  catch(e){ return; }
+  if(!txns.length) return;
+  const bal={}; bals.forEach(b=>{ if(bal[b.account]===undefined) bal[b.account]=Number(b.balance); });
+  const accts=['CBD','Rototuna','CBD Saving','Rototuna Saving'];
+  let h='<div class="card"><div class="card-title">✅ Daily Reconciliation <span class="accent">what moved · balance now</span></div>';
+  accts.forEach(acc=>{
+    const rows=txns.filter(t=>t.account===acc);
+    const balNow = bal[acc]!==undefined ? nzd(bal[acc]) : '—';
+    if(!rows.length){ h+='<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="font-weight:700;color:var(--t2)">'+acc+'</span><span style="font-size:12px;color:var(--t3)">no recent movement · '+balNow+'</span></div>'; return; }
+    const latestDate=rows[0].date;
+    const day=rows.filter(t=>t.date===latestDate);
+    let inS=0,outS=0; day.forEach(t=>{const a=Number(t.amount)||0; if(a>=0)inS+=a; else outS+=a;});
+    const net=inS+outS;
+    h+='<div style="margin-bottom:10px;padding-bottom:9px;border-bottom:1px solid var(--border)">'
+      +'<div style="display:flex;justify-content:space-between;font-weight:700;color:var(--t1)"><span>'+acc+' <span style="font-size:10px;color:var(--t3);font-weight:400">'+latestDate+' · '+day.length+' moves</span></span><span>'+balNow+'</span></div>'
+      +'<div style="font-size:12px;margin-top:3px"><span style="color:var(--green)">in +'+nzd(inS)+'</span> · <span style="color:var(--red)">out −'+nzd(Math.abs(outS))+'</span> · net '+(net>=0?'+':'−')+nzd(Math.abs(net))+'</div></div>';
+  });
+  h+='<div style="font-size:11px;color:var(--t3)">Every movement is itemised below — nothing hidden.</div></div>';
+  host.innerHTML=h;
+}
+async function renderCashTxns(){
+  const host=$('cashTxns'); if(!host) return;
+  host.innerHTML='<div class="empty" style="padding:12px">Loading movements…</div>';
+  let txns=[];
+  try{ txns=await sbGet('bank_transactions','order=ts.desc&limit=80'); }
+  catch(e){ host.innerHTML='<div class="empty" style="color:var(--red);padding:12px">Could not load movements: '+e.message+'</div>'; return; }
+  if(!txns.length){ host.innerHTML='<div class="card"><div class="card-title">🏦 Where the Money Went</div><div class="empty">No bank movements synced yet — check back tomorrow morning.</div></div>'; return; }
+  const byDate={};
+  txns.forEach(t=>{ (byDate[t.date]=byDate[t.date]||[]).push(t); });
+  const dates=Object.keys(byDate).sort().reverse().slice(0,5);
+  let h='<div class="card"><div class="card-title">🏦 Where the Money Went <span class="accent">live from ANZ</span></div>';
+  dates.forEach(d=>{
+    const rows=byDate[d]; let inSum=0,outSum=0;
+    rows.forEach(t=>{ const a=Number(t.amount)||0; if(a>=0)inSum+=a; else outSum+=a; });
+    h+='<div style="display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin:14px 0 6px"><span>'+d+'</span><span style="color:var(--green)">+'+nzd(inSum)+'</span></div>';
+    rows.forEach(t=>{
+      const a=Number(t.amount)||0, inc=a>=0;
+      const label=(t.merchant||t.description||'—').replace(/Card number.*$/,'').slice(0,40);
+      const tag=t.account+(t.pf_group?' · '+t.pf_group:'');
+      h+='<div class="stat-row"><span class="stat-lbl">'+(inc?'▸ ':'▾ ')+label+' <span style="font-size:10px;color:var(--t3)">'+tag+'</span></span><span class="stat-val" style="color:'+(inc?'var(--green)':'var(--red)')+'">'+(inc?'+':'−')+nzd(Math.abs(a))+'</span></div>';
+    });
+  });
+  h+='</div>';
+  host.innerHTML=h;
 }
 function renderCashFlow(){
   const future=cachedFutureInvoices;
