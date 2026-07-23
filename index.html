@@ -651,9 +651,12 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 <!-- CASH FLOW -->
 <div class="section" id="sec-cashflow">
   <div id="cashForecast"></div>
-  <div id="cashPots"></div>
-  <div id="cashRecon"></div>
-  <div id="cashTxns"></div>
+  <div class="card" style="cursor:pointer" onclick="toggleCF('pots')"><div class="card-title" style="margin:0">🫙 Pots &amp; Floor Check <span id="cfchev-pots" style="float:right;color:var(--t3)">▼</span></div></div>
+  <div id="cashPots" style="display:none"></div>
+  <div class="card" style="cursor:pointer" onclick="toggleCF('recon')"><div class="card-title" style="margin:0">✅ Daily Reconciliation <span id="cfchev-recon" style="float:right;color:var(--t3)">▼</span></div></div>
+  <div id="cashRecon" style="display:none"></div>
+  <div class="card" style="cursor:pointer" onclick="toggleCF('txns')"><div class="card-title" style="margin:0">🏦 Where the Money Went <span id="cfchev-txns" style="float:right;color:var(--t3)">▼</span></div></div>
+  <div id="cashTxns" style="display:none"></div>
 </div>
 
 <!-- SALES INTEL -->
@@ -1638,6 +1641,8 @@ async function saveCashBalances(){
 }
 function addDays(str,n){ var d=new Date(str+'T12:00:00'); d.setDate(d.getDate()+n); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
 function isDefer(n){ return /defer|grace/i.test(n||''); }
+function toggleCF(k){ var map={pots:'cashPots',recon:'cashRecon',txns:'cashTxns'}; var b=$(map[k]); var c=$('cfchev-'+k); if(!b) return; var open=b.style.display==='none'; b.style.display=open?'block':'none'; if(c) c.textContent=open?'▲':'▼'; }
+var cashChartInstance=null;
 async function renderForecast(){
   var host=$('cashForecast'); if(!host) return;
   host.innerHTML='<div class="empty" style="padding:12px">Building plan…</div>';
@@ -1657,43 +1662,73 @@ async function renderForecast(){
   var UBER=4500, DOOR=2500, BNO=150, OTHER=650;
   var billMap={};
   bills.forEach(function(b){ var key=(b.date<today?today:b.date); (billMap[key]=billMap[key]||[]).push(b); });
-  var runAll=start, minAll=start, run=start, min=start, minDate=today, rows=[];
+  var days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var labels=[], inArr=[], outArr=[], balArr=[], run=start, min=start, minDate=today, rows=[], weeks={}, weekOrder=[];
+  function wkStart(dt){ var x=new Date(dt.getTime()); var w=(x.getDay()+6)%7; x.setDate(x.getDate()-w); return x.getFullYear()+'-'+('0'+(x.getMonth()+1)).slice(-2)+'-'+('0'+x.getDate()).slice(-2); }
   for(var i=0;i<=14;i++){
     var d=addDays(today,i); var dt=new Date(d+'T12:00:00'); var dow=dt.getDay();
     var infl= (i===0)? todayInhouse : ((dow===0?inhouse*0.5:inhouse) + (dow>=1&&dow<=5?BNO:0) + (dow===2?UBER:0) + (dow===3?DOOR:0));
     var todays=(billMap[d]||[]);
-    var outAll=OTHER, out=OTHER;
-    todays.forEach(function(b){ var a=Number(b.amount); outAll+=a; if(!isDefer(b.name)) out+=a; });
-    runAll+=infl-outAll; run+=infl-out;
-    if(runAll<minAll) minAll=runAll;
+    var outNon=OTHER, outDef=0;
+    todays.forEach(function(b){ var a=Number(b.amount); if(isDefer(b.name)) outDef+=a; else outNon+=a; });
+    run+=infl-outNon;
     if(run<min){ min=run; minDate=d; }
+    labels.push(days[dow]+' '+Number(d.slice(8,10)));
+    inArr.push(Math.round(infl)); outArr.push(Math.round(outNon)); balArr.push(Math.round(run));
+    var w=wkStart(dt); if(!weeks[w]){ weeks[w]={inc:0,out:0,def:0,bal:run}; weekOrder.push(w); }
+    weeks[w].inc+=infl; weeks[w].out+=outNon; weeks[w].def+=outDef; weeks[w].bal=run;
     rows.push({d:d, dow:dow, bills:todays, bal:run});
   }
   var status,color;
   if(min<-500){ status='DANGER'; color='var(--red)'; }
   else if(min<2500){ status='TIGHT'; color='var(--amber)'; }
   else { status='HEALTHY'; color='var(--green)'; }
-  var days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   var h='<div class="card" style="border-color:'+color+'">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center"><div class="card-title" style="margin:0">📋 Payment Plan (2 weeks)</div><div style="font-weight:800;color:'+color+'">'+status+'</div></div>'
-    +'<div style="font-size:12px;color:var(--t3);margin:8px 0 2px">Cash now '+nzd(start)+' · plan low point '+nzd(min)+' on '+minDate+'</div>'
+    +'<div style="display:flex;justify-content:space-between;align-items:center"><div class="card-title" style="margin:0">📊 Cash Flow Forecast</div><div style="font-weight:800;color:'+color+'">'+status+'</div></div>'
+    +'<div style="font-size:12px;color:var(--t3);margin:6px 0 2px">Cash now '+nzd(start)+' · low point '+nzd(min)+' on '+minDate+'</div>'
     +'<div style="font-size:11px;color:var(--t3);margin-bottom:8px">'+['CBD','Rototuna','CBD Saving','Rototuna Saving'].map(function(a){return a+' '+nzd(latest[a]||0);}).join(' · ')+'</div>'
-    +'<div style="font-size:12.5px;color:'+color+';margin-bottom:10px">Pay-everything low point: '+nzd(minAll)+'. Even deferring the ⏳ items, the plan dips to '+nzd(min)+' near month-end — stagger CBD rent a few days too and hold all drawings until it recovers (~4 Aug).</div>';
+    +'<div class="chart-wrap" style="height:210px"><canvas id="cashChart"></canvas></div>';
+  h+='<div style="overflow-x:auto;margin-top:14px"><table style="width:100%;border-collapse:collapse;font-size:12px">'
+    +'<tr><th style="text-align:left;color:var(--t3);font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:5px 4px">Week of</th>'
+    +weekOrder.map(function(w){ return '<th style="text-align:right;color:var(--t3);font-size:10px;padding:5px 4px">'+Number(w.slice(8,10))+'/'+Number(w.slice(5,7))+'</th>'; }).join('')+'</tr>';
+  function trow(lbl,fn,colfn){ return '<tr><td style="text-align:left;color:var(--t2);padding:5px 4px;font-weight:600">'+lbl+'</td>'+weekOrder.map(function(w){ var v=fn(weeks[w]); var c=colfn?colfn(v):'var(--t1)'; return '<td style="text-align:right;padding:5px 4px;font-variant-numeric:tabular-nums;color:'+c+'">'+nzd(v)+'</td>'; }).join('')+'</tr>'; }
+  h+=trow('In', function(x){return x.inc;}, function(){return 'var(--green)';});
+  h+=trow('Out', function(x){return -x.out;}, function(){return 'var(--red)';});
+  h+=trow('Net', function(x){return x.inc-x.out;}, function(v){return v>=0?'var(--green)':'var(--red)';});
+  h+=trow('Balance', function(x){return x.bal;}, function(v){return v>=0?'var(--t1)':'var(--red)';});
+  h+='</table></div>';
+  var defTotal=0; weekOrder.forEach(function(w){ defTotal+=weeks[w].def; });
+  if(defTotal>0){ h+='<div style="font-size:11.5px;color:var(--amber);margin-top:8px">⏳ Deferred (kept out of balance): '+nzd(defTotal)+' — GST + Rototuna rent, pushed to mid-Aug.</div>'; }
+  h+='<div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 4px">What to pay, by day</div>';
   var shown=0;
   rows.forEach(function(r){
     if(!r.bills.length) return; shown++;
-    h+='<div style="padding:6px 0;border-bottom:1px solid var(--border)">'
-      +'<div style="display:flex;justify-content:space-between;font-size:12px"><span style="font-weight:700;color:var(--t2)">'+days[r.dow]+' '+r.d+'</span><span style="color:'+(r.bal<0?'var(--red)':'var(--green)')+'">running '+nzd(r.bal)+'</span></div>';
-    r.bills.forEach(function(b){
-      var df=isDefer(b.name);
+    h+='<div style="padding:5px 0;border-bottom:1px solid var(--border)">'
+      +'<div style="display:flex;justify-content:space-between;font-size:12px"><span style="font-weight:700;color:var(--t2)">'+days[r.dow]+' '+Number(r.d.slice(8,10))+'/'+Number(r.d.slice(5,7))+'</span><span style="color:'+(r.bal<0?'var(--red)':'var(--green)')+'">bal '+nzd(r.bal)+'</span></div>';
+    r.bills.forEach(function(b){ var df=isDefer(b.name);
       h+='<div class="stat-row" style="padding:2px 0"><span class="stat-lbl" style="'+(df?'color:var(--amber)':'')+'">'+(df?'⏳ ':'▾ ')+b.name+'</span><span class="stat-val" style="'+(df?'color:var(--amber)':'')+'">'+nzd(b.amount)+'</span></div>';
     });
     h+='</div>';
   });
-  if(!shown){ h+='<div class="empty" style="padding:6px">No payments scheduled — add them and they will show here.</div>'; }
-  h+='<div style="font-size:11px;color:var(--t3);margin-top:8px">Income assumed: in-house ~'+nzd(inhouse)+'/day · Uber '+nzd(UBER)+' Tue · DoorDash '+nzd(DOOR)+' Wed. Days not listed have nothing to pay. ⏳ = defer to mid-Aug.</div>';
+  if(!shown){ h+='<div class="empty" style="padding:6px">No payments scheduled.</div>'; }
+  h+='<div style="font-size:11px;color:var(--t3);margin-top:8px">Income: in-house ~'+nzd(inhouse)+'/day · Uber '+nzd(UBER)+' Tue · DoorDash '+nzd(DOOR)+' Wed.</div>';
   h+='</div>';
   host.innerHTML=h;
+  try{
+    if(cashChartInstance){ cashChartInstance.destroy(); cashChartInstance=null; }
+    var cv=document.getElementById('cashChart');
+    if(cv && window.Chart){
+      cashChartInstance=new Chart(cv,{ data:{ labels:labels, datasets:[
+        { type:'bar', label:'In', data:inArr, backgroundColor:'rgba(52,211,153,.75)', order:3 },
+        { type:'bar', label:'Out', data:outArr, backgroundColor:'rgba(248,113,113,.75)', order:3 },
+        { type:'line', label:'Balance', data:balArr, borderColor:'#38bdf8', backgroundColor:'#38bdf8', borderWidth:2, tension:.3, pointRadius:2, order:1 }
+      ]}, options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ labels:{ color:'#94a3b8', boxWidth:10, font:{size:10} } }, datalabels:{ display:false } },
+        scales:{ x:{ ticks:{ color:'#64748b', font:{size:9}, maxRotation:0, autoSkip:true, maxTicksLimit:8 }, grid:{ display:false } },
+                 y:{ ticks:{ color:'#64748b', font:{size:9}, callback:function(v){ return '$'+Math.round(v/1000)+'k'; } }, grid:{ color:'rgba(255,255,255,.06)' } } } }
+      });
+    }
+  }catch(e){}
 }
 async function renderReconcile(){
   const host=$('cashRecon'); if(!host) return;
@@ -1730,11 +1765,11 @@ async function renderCashTxns(){
   const byDate={};
   txns.forEach(t=>{ (byDate[t.date]=byDate[t.date]||[]).push(t); });
   const dates=Object.keys(byDate).sort().reverse().slice(0,5);
-  let h='<div class="card"><div class="card-title" style="cursor:pointer" onclick="toggleCashTxns()">🏦 Where the Money Went <span class="accent">tap to expand</span><span id="cashTxnChev" style="float:right;color:var(--t3)">▼</span></div><div id="cashTxnBody" style="display:none">';
+  let h='<div class="card">';
   dates.forEach(d=>{
     const rows=byDate[d]; let inSum=0,outSum=0;
     rows.forEach(t=>{ const a=Number(t.amount)||0; if(a>=0)inSum+=a; else outSum+=a; });
-    h+='<div style="display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin:14px 0 6px"><span>'+d+'</span><span style="color:var(--green)">+'+nzd(inSum)+'</span></div>';
+    h+='<div style="display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin:8px 0 6px"><span>'+d+'</span><span style="color:var(--green)">+'+nzd(inSum)+'</span></div>';
     rows.forEach(t=>{
       const a=Number(t.amount)||0, inc=a>=0;
       const label=(t.merchant||t.description||'—').replace(/Card number.*$/,'').slice(0,40);
@@ -1742,11 +1777,9 @@ async function renderCashTxns(){
       h+='<div class="stat-row"><span class="stat-lbl">'+(inc?'▸ ':'▾ ')+label+' <span style="font-size:10px;color:var(--t3)">'+tag+'</span></span><span class="stat-val" style="color:'+(inc?'var(--green)':'var(--red)')+'">'+(inc?'+':'−')+nzd(Math.abs(a))+'</span></div>';
     });
   });
-  h+='</div></div>';
+  h+='</div>';
   host.innerHTML=h;
 }
-let cashTxnsOpen=false;
-function toggleCashTxns(){ cashTxnsOpen=!cashTxnsOpen; var b=$('cashTxnBody'), c=$('cashTxnChev'); if(b) b.style.display=cashTxnsOpen?'block':'none'; if(c) c.textContent=cashTxnsOpen?'▲':'▼'; }
 function renderCashFlow(){
   const future=cachedFutureInvoices;
   $('cashflowCards').innerHTML='<div class="card"><div class="card-title">💸 CBD — Upcoming Invoices</div><div id="cf_CBD"></div></div><div class="card"><div class="card-title">💸 Rototuna — Upcoming Invoices</div><div id="cf_Rototuna"></div></div>';
