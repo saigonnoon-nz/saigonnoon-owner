@@ -1651,34 +1651,42 @@ async function refreshBank(btn){
     renderForecast(); renderReconcile();
   }catch(e){ if(btn){ btn.disabled=false; btn.textContent='🔄 Refresh from bank'; } }
 }
+var cashBillsData=[], editingBillId=null;
 async function renderBills(){
   var host=$('cashBills'); if(!host) return;
-  var bills=[];
-  try{ bills=await sbGet('upcoming_bills','order=date.asc'); }
+  try{ cashBillsData=await sbGet('upcoming_bills','order=date.asc'); }
   catch(e){ host.innerHTML='<div class="card"><div class="empty" style="color:var(--red)">'+e.message+'</div></div>'; return; }
   var h='<div class="card">';
-  h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'
+  h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">'
     +'<input id="nb_date" type="date" style="flex:1;min-width:130px;background:var(--s2);border:1px solid var(--border);color:var(--t1);border-radius:7px;padding:9px;font-size:13px">'
     +'<input id="nb_name" type="text" placeholder="Bill name" style="flex:2;min-width:150px;background:var(--s2);border:1px solid var(--border);color:var(--t1);border-radius:7px;padding:9px;font-size:13px">'
     +'<input id="nb_amt" type="number" step="0.01" inputmode="decimal" placeholder="Amount" style="flex:1;min-width:110px;background:var(--s2);border:1px solid var(--border);color:var(--t1);border-radius:7px;padding:9px;font-size:13px">'
-    +'<button onclick="addBill()" style="background:var(--amber);color:#0b1220;border:none;border-radius:7px;padding:9px 16px;font-weight:800;cursor:pointer">Add</button></div>';
+    +'<button id="nb_btn" onclick="addBill()" style="background:var(--amber);color:#0b1220;border:none;border-radius:7px;padding:9px 16px;font-weight:800;cursor:pointer">Add</button>'
+    +'<button id="nb_cancel" onclick="cancelEditBill()" style="display:none;background:var(--s2);color:var(--t2);border:1px solid var(--border);border-radius:7px;padding:9px 12px;font-weight:700;cursor:pointer">Cancel</button></div>';
   h+='<div id="billMsg" style="font-size:12px;color:var(--green);min-height:14px;margin-bottom:6px"></div>';
-  var un=bills.filter(function(b){ return !b.paid; });
+  var un=cashBillsData.filter(function(b){ return !b.paid; });
   if(!un.length){ h+='<div class="empty">No upcoming bills.</div>'; }
   un.forEach(function(b){
-    h+='<div class="stat-row" style="align-items:center"><span class="stat-lbl">'+b.date+' · '+b.name+'</span><span style="display:flex;gap:10px;align-items:center"><span class="stat-val">'+nzd(b.amount)+'</span><span onclick="delBill(\''+b.id+'\')" title="Delete" style="color:var(--red);cursor:pointer;font-weight:800">✕</span></span></div>';
+    var ed=(b.id===editingBillId);
+    h+='<div class="stat-row" style="align-items:center'+(ed?';background:var(--amber-dim);border-radius:6px':'')+'"><span class="stat-lbl">'+b.date+' · '+b.name+'</span><span style="display:flex;gap:12px;align-items:center"><span class="stat-val">'+nzd(b.amount)+'</span><span onclick="editBill(\''+b.id+'\')" title="Edit" style="color:var(--amber);cursor:pointer;font-weight:800">✎</span><span onclick="delBill(\''+b.id+'\')" title="Delete" style="color:var(--red);cursor:pointer;font-weight:800">✕</span></span></div>';
   });
   h+='</div>';
   host.innerHTML=h;
+  if(editingBillId){ var b=cashBillsData.filter(function(x){return x.id===editingBillId;})[0]; if(b){ $('nb_date').value=b.date; $('nb_name').value=b.name; $('nb_amt').value=b.amount; if($('nb_btn'))$('nb_btn').textContent='Update'; if($('nb_cancel'))$('nb_cancel').style.display='inline-block'; var m=$('billMsg'); if(m){m.style.color='var(--amber)';m.textContent='Editing — change the fields then press Update';} } }
 }
+function editBill(id){ editingBillId=id; renderBills(); }
+function cancelEditBill(){ editingBillId=null; renderBills(); }
 async function addBill(){
   var d=$('nb_date').value, n=$('nb_name').value.trim(), a=parseFloat($('nb_amt').value), msg=$('billMsg');
   if(!d||!n||isNaN(a)){ if(msg){ msg.style.color='var(--red)'; msg.textContent='Enter date, name and amount'; } return; }
   if(msg){ msg.style.color='var(--amber)'; msg.textContent='Saving…'; }
-  try{ await sbPost('upcoming_bills',{date:d,name:n,amount:a,source:'owner'}); renderBills(); renderForecast(); }
-  catch(e){ if(msg){ msg.style.color='var(--red)'; msg.textContent='Error: '+e.message; } }
+  try{
+    if(editingBillId){ await sbPatch('upcoming_bills',editingBillId,{date:d,name:n,amount:a}); editingBillId=null; }
+    else { await sbPost('upcoming_bills',{date:d,name:n,amount:a,source:'owner'}); }
+    renderBills(); renderForecast();
+  }catch(e){ if(msg){ msg.style.color='var(--red)'; msg.textContent='Error: '+e.message; } }
 }
-async function delBill(id){ try{ await sbDelete('upcoming_bills',id); renderBills(); renderForecast(); }catch(e){} }
+async function delBill(id){ if(editingBillId===id) editingBillId=null; try{ await sbDelete('upcoming_bills',id); renderBills(); renderForecast(); }catch(e){} }
 var cashChartInstance=null;
 async function renderForecast(){
   var host=$('cashForecast'); if(!host) return;
