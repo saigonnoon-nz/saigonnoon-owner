@@ -651,10 +651,10 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 <!-- CASH FLOW -->
 <div class="section" id="sec-cashflow">
   <div id="cashForecast"></div>
-  <div class="card" style="cursor:pointer" onclick="toggleCF('pots')"><div class="card-title" style="margin:0">🫙 Pots &amp; Floor Check <span id="cfchev-pots" style="float:right;color:var(--t3)">▼</span></div></div>
-  <div id="cashPots" style="display:none"></div>
-  <div class="card" style="cursor:pointer" onclick="toggleCF('recon')"><div class="card-title" style="margin:0">✅ Daily Reconciliation <span id="cfchev-recon" style="float:right;color:var(--t3)">▼</span></div></div>
+  <div class="card" style="cursor:pointer" onclick="toggleCF('recon')"><div class="card-title" style="margin:0">✅ Bank Balance &amp; Reconciliation <span id="cfchev-recon" style="float:right;color:var(--t3)">▼</span></div></div>
   <div id="cashRecon" style="display:none"></div>
+  <div class="card" style="cursor:pointer" onclick="toggleCF('bills')"><div class="card-title" style="margin:0">✏️ Manage Bills <span id="cfchev-bills" style="float:right;color:var(--t3)">▼</span></div></div>
+  <div id="cashBills" style="display:none"></div>
   <div class="card" style="cursor:pointer" onclick="toggleCF('txns')"><div class="card-title" style="margin:0">🏦 Where the Money Went <span id="cfchev-txns" style="float:right;color:var(--t3)">▼</span></div></div>
   <div id="cashTxns" style="display:none"></div>
 </div>
@@ -864,7 +864,7 @@ function showSection(id,el) {
   $('sec-'+id).classList.add('active'); el.classList.add('active');
   if(id==='staff'){renderStaffProfiles();renderFOHBOHCharts();}
   if(id==='salesintel'){const w=$('siWeekDate');if(!w.value)w.value=getMondayStr(new Date());siLoadResults(w.value);}
-  if(id==='cashflow'){ renderForecast(); renderCashPots(); renderReconcile(); renderCashTxns(); }
+  if(id==='cashflow'){ renderForecast(); renderReconcile(); renderBills(); renderCashTxns(); }
   if(id==='assistant') updateAssistantSnapshotFull();
 }
 function setLabourTab(tab) {
@@ -1641,7 +1641,44 @@ async function saveCashBalances(){
 }
 function addDays(str,n){ var d=new Date(str+'T12:00:00'); d.setDate(d.getDate()+n); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
 function isDefer(n){ return /defer|grace/i.test(n||''); }
-function toggleCF(k){ var map={pots:'cashPots',recon:'cashRecon',txns:'cashTxns'}; var b=$(map[k]); var c=$('cfchev-'+k); if(!b) return; var open=b.style.display==='none'; b.style.display=open?'block':'none'; if(c) c.textContent=open?'▲':'▼'; }
+function toggleCF(k){ var map={recon:'cashRecon',txns:'cashTxns',bills:'cashBills'}; var b=$(map[k]); var c=$('cfchev-'+k); if(!b) return; var open=b.style.display==='none'; b.style.display=open?'block':'none'; if(c) c.textContent=open?'▲':'▼'; }
+async function refreshBank(btn){
+  if(btn){ btn.disabled=true; btn.textContent='Refreshing… (~20s)'; }
+  try{
+    await fetch(SB_URL+'/functions/v1/akahu-sync?action=refresh&k=sn_setup_9f2x');
+    await new Promise(function(r){ setTimeout(r,18000); });
+    await fetch(SB_URL+'/functions/v1/akahu-sync?action=sync&days=5&k=sn_setup_9f2x');
+    renderForecast(); renderReconcile();
+  }catch(e){ if(btn){ btn.disabled=false; btn.textContent='🔄 Refresh from bank'; } }
+}
+async function renderBills(){
+  var host=$('cashBills'); if(!host) return;
+  var bills=[];
+  try{ bills=await sbGet('upcoming_bills','order=date.asc'); }
+  catch(e){ host.innerHTML='<div class="card"><div class="empty" style="color:var(--red)">'+e.message+'</div></div>'; return; }
+  var h='<div class="card">';
+  h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'
+    +'<input id="nb_date" type="date" style="flex:1;min-width:130px;background:var(--s2);border:1px solid var(--border);color:var(--t1);border-radius:7px;padding:9px;font-size:13px">'
+    +'<input id="nb_name" type="text" placeholder="Bill name" style="flex:2;min-width:150px;background:var(--s2);border:1px solid var(--border);color:var(--t1);border-radius:7px;padding:9px;font-size:13px">'
+    +'<input id="nb_amt" type="number" step="0.01" inputmode="decimal" placeholder="Amount" style="flex:1;min-width:110px;background:var(--s2);border:1px solid var(--border);color:var(--t1);border-radius:7px;padding:9px;font-size:13px">'
+    +'<button onclick="addBill()" style="background:var(--amber);color:#0b1220;border:none;border-radius:7px;padding:9px 16px;font-weight:800;cursor:pointer">Add</button></div>';
+  h+='<div id="billMsg" style="font-size:12px;color:var(--green);min-height:14px;margin-bottom:6px"></div>';
+  var un=bills.filter(function(b){ return !b.paid; });
+  if(!un.length){ h+='<div class="empty">No upcoming bills.</div>'; }
+  un.forEach(function(b){
+    h+='<div class="stat-row" style="align-items:center"><span class="stat-lbl">'+b.date+' · '+b.name+'</span><span style="display:flex;gap:10px;align-items:center"><span class="stat-val">'+nzd(b.amount)+'</span><span onclick="delBill(\''+b.id+'\')" title="Delete" style="color:var(--red);cursor:pointer;font-weight:800">✕</span></span></div>';
+  });
+  h+='</div>';
+  host.innerHTML=h;
+}
+async function addBill(){
+  var d=$('nb_date').value, n=$('nb_name').value.trim(), a=parseFloat($('nb_amt').value), msg=$('billMsg');
+  if(!d||!n||isNaN(a)){ if(msg){ msg.style.color='var(--red)'; msg.textContent='Enter date, name and amount'; } return; }
+  if(msg){ msg.style.color='var(--amber)'; msg.textContent='Saving…'; }
+  try{ await sbPost('upcoming_bills',{date:d,name:n,amount:a,source:'owner'}); renderBills(); renderForecast(); }
+  catch(e){ if(msg){ msg.style.color='var(--red)'; msg.textContent='Error: '+e.message; } }
+}
+async function delBill(id){ try{ await sbDelete('upcoming_bills',id); renderBills(); renderForecast(); }catch(e){} }
 var cashChartInstance=null;
 async function renderForecast(){
   var host=$('cashForecast'); if(!host) return;
@@ -1655,16 +1692,19 @@ async function renderForecast(){
   var latest={}; bals.forEach(function(b){ if(latest[b.account]===undefined) latest[b.account]=Number(b.balance); });
   var start=0; ['CBD','Rototuna','CBD Saving','Rototuna Saving'].forEach(function(a){ start+=(latest[a]||0); });
   var today=localDateStr(new Date());
-  var ih={}; sales.forEach(function(s){ ih[s.date]=(ih[s.date]||0)+Number(s.inhouse); });
+  var ih={}, netByDate={}; sales.forEach(function(s){ ih[s.date]=(ih[s.date]||0)+Number(s.inhouse); netByDate[s.date]=(netByDate[s.date]||0)+Number(s.net_total); });
   var todayInhouse= ih[today]||0;
   var pastD=Object.keys(ih).filter(function(d){ return d<today; });
   var inhouse= pastD.length? pastD.reduce(function(a,d){return a+ih[d];},0)/pastD.length : 2600;
+  var pastNetD=Object.keys(netByDate).filter(function(d){ return d<today; });
+  var avgNet= pastNetD.length? pastNetD.reduce(function(a,d){return a+netByDate[d];},0)/pastNetD.length : 4200;
   var UBER=4500, DOOR=2500, BNO=150, OTHER=650;
   var billMap={};
   bills.forEach(function(b){ var key=(b.date<today?today:b.date); (billMap[key]=billMap[key]||[]).push(b); });
   var days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  var labels=[], inArr=[], outArr=[], balArr=[], run=start, min=start, minDate=today, rows=[], weeks={}, weekOrder=[];
+  var labels=[], fcastArr=[], actualArr=[], outArr=[], balArr=[], run=start, min=start, minDate=today, rows=[], weeks={}, weekOrder=[];
   function wkStart(dt){ var x=new Date(dt.getTime()); var w=(x.getDay()+6)%7; x.setDate(x.getDate()-w); return x.getFullYear()+'-'+('0'+(x.getMonth()+1)).slice(-2)+'-'+('0'+x.getDate()).slice(-2); }
+  var thisWk=wkStart(new Date(today+'T12:00:00')); var wkFcast=0, wkActual=0;
   for(var i=0;i<=14;i++){
     var d=addDays(today,i); var dt=new Date(d+'T12:00:00'); var dow=dt.getDay();
     var infl= (i===0)? todayInhouse : ((dow===0?inhouse*0.5:inhouse) + (dow>=1&&dow<=5?BNO:0) + (dow===2?UBER:0) + (dow===3?DOOR:0));
@@ -1673,12 +1713,16 @@ async function renderForecast(){
     todays.forEach(function(b){ var a=Number(b.amount); if(isDefer(b.name)) outDef+=a; else outNon+=a; });
     run+=infl-outNon;
     if(run<min){ min=run; minDate=d; }
+    var fcastSales=(dow===0?avgNet*0.6:avgNet);
+    var actualSales=(netByDate[d]!==undefined)? netByDate[d] : null;
     labels.push(days[dow]+' '+Number(d.slice(8,10)));
-    inArr.push(Math.round(infl)); outArr.push(Math.round(outNon)); balArr.push(Math.round(run));
+    fcastArr.push(Math.round(fcastSales)); actualArr.push(actualSales===null?null:Math.round(actualSales)); outArr.push(Math.round(outNon)); balArr.push(Math.round(run));
     var w=wkStart(dt); if(!weeks[w]){ weeks[w]={inc:0,out:0,def:0,bal:run}; weekOrder.push(w); }
     weeks[w].inc+=infl; weeks[w].out+=outNon; weeks[w].def+=outDef; weeks[w].bal=run;
+    if(w===thisWk && actualSales!==null){ wkFcast+=fcastSales; wkActual+=actualSales; }
     rows.push({d:d, dow:dow, bills:todays, bal:run});
   }
+  var variance=wkActual-wkFcast;
   var status,color;
   if(min<-500){ status='DANGER'; color='var(--red)'; }
   else if(min<2500){ status='TIGHT'; color='var(--amber)'; }
@@ -1687,6 +1731,7 @@ async function renderForecast(){
     +'<div style="display:flex;justify-content:space-between;align-items:center"><div class="card-title" style="margin:0">📊 Cash Flow Forecast</div><div style="font-weight:800;color:'+color+'">'+status+'</div></div>'
     +'<div style="font-size:12px;color:var(--t3);margin:6px 0 2px">Cash now '+nzd(start)+' · low point '+nzd(min)+' on '+minDate+'</div>'
     +'<div style="font-size:11px;color:var(--t3);margin-bottom:8px">'+['CBD','Rototuna','CBD Saving','Rototuna Saving'].map(function(a){return a+' '+nzd(latest[a]||0);}).join(' · ')+'</div>'
+    +(wkFcast>0? '<div style="background:var(--s2);border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:12.5px">Sales this week so far — forecast <b>'+nzd(wkFcast)+'</b> · actual <b>'+nzd(wkActual)+'</b> · <span style="color:'+(variance>=0?'var(--green)':'var(--red)')+'">'+(variance>=0?'+':'−')+nzd(Math.abs(variance))+' '+(variance>=0?'ahead of plan':'behind plan')+'</span></div>':'')
     +'<div class="chart-wrap" style="height:210px"><canvas id="cashChart"></canvas></div>';
   h+='<div style="overflow-x:auto;margin-top:14px"><table style="width:100%;border-collapse:collapse;font-size:12px">'
     +'<tr><th style="text-align:left;color:var(--t3);font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:5px 4px">Week of</th>'
@@ -1719,9 +1764,9 @@ async function renderForecast(){
     var cv=document.getElementById('cashChart');
     if(cv && window.Chart){
       cashChartInstance=new Chart(cv,{ data:{ labels:labels, datasets:[
-        { type:'bar', label:'In', data:inArr, backgroundColor:'rgba(52,211,153,.75)', order:3 },
-        { type:'bar', label:'Out', data:outArr, backgroundColor:'rgba(248,113,113,.75)', order:3 },
-        { type:'line', label:'Balance', data:balArr, borderColor:'#38bdf8', backgroundColor:'#38bdf8', borderWidth:2, tension:.3, pointRadius:2, order:1 }
+        { type:'bar', label:'Sales forecast', data:fcastArr, backgroundColor:'rgba(148,163,184,.35)', order:3 },
+        { type:'bar', label:'Sales actual', data:actualArr, backgroundColor:'rgba(52,211,153,.9)', order:2 },
+        { type:'line', label:'Bank balance', data:balArr, borderColor:'#38bdf8', backgroundColor:'#38bdf8', borderWidth:2, tension:.3, pointRadius:2, order:1 }
       ]}, options:{ responsive:true, maintainAspectRatio:false,
         plugins:{ legend:{ labels:{ color:'#94a3b8', boxWidth:10, font:{size:10} } }, datalabels:{ display:false } },
         scales:{ x:{ ticks:{ color:'#64748b', font:{size:9}, maxRotation:0, autoSkip:true, maxTicksLimit:8 }, grid:{ display:false } },
@@ -1736,10 +1781,14 @@ async function renderReconcile(){
   let bals=[], txns=[];
   try{ [bals,txns]=await Promise.all([ sbGet('bank_balances','order=date.desc&limit=40'), sbGet('bank_transactions','order=ts.desc&limit=250') ]); }
   catch(e){ return; }
-  if(!txns.length) return;
   const bal={}; bals.forEach(b=>{ if(bal[b.account]===undefined) bal[b.account]=Number(b.balance); });
   const accts=['CBD','Rototuna','CBD Saving','Rototuna Saving'];
-  let h='<div class="card"><div class="card-title">✅ Daily Reconciliation <span class="accent">what moved · balance now</span></div>';
+  let total=0; accts.forEach(a=>{ total+=(bal[a]||0); });
+  let h='<div class="card">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div><div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">Total in bank now</div><div style="font-size:24px;font-weight:800;color:var(--t1)">'+nzd(total)+'</div><div style="font-size:11px;color:var(--t3);margin-top:2px">'+accts.map(function(a){return a+' '+nzd(bal[a]||0);}).join(' · ')+'</div></div>'
+    +'<button onclick="refreshBank(this)" style="background:var(--s2);border:1px solid var(--border2);color:var(--amber);border-radius:8px;padding:9px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">🔄 Refresh</button></div>';
+  if(!txns.length){ h+='<div class="empty" style="padding:8px">Live balances shown above · transaction detail syncs overnight.</div></div>'; host.innerHTML=h; return; }
+  h+='<div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin:4px 0 6px">Yesterday\'s movement</div>';
   accts.forEach(acc=>{
     const rows=txns.filter(t=>t.account===acc);
     const balNow = bal[acc]!==undefined ? nzd(bal[acc]) : '—';
