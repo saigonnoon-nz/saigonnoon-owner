@@ -2138,12 +2138,32 @@ async function updateAssistantSnapshotFull(){
   plCtx+='  Weekly labour now: CBD '+nzd((rosterLabour.CBD&&rosterLabour.CBD.cost)||0)+' | Rototuna '+nzd((rosterLabour.Rototuna&&rosterLabour.Rototuna.cost)||0)+'\n';
   plCtx+='  Active staff: '+(allStaff||[]).filter(function(s){return s.active;}).map(function(s){return s.name+' ('+(s.branch||'?')+', $'+s.hourly_rate+'/h '+(s.position||'')+')';}).join(', ')+'\n'+
     '  Targets: food <30%, labour <35%, fixed <25% of net sales.\n\n';
+  // Same-period comparison: month-to-date vs the SAME days last month (apples to apples)
+  function pad2(n){ return ('0'+n).slice(-2); }
+  var mStart=today.slice(0,8)+'01';
+  var mSalesDates=sales90.filter(function(s){ return s.date>=mStart; }).map(function(s){ return s.date; }).sort();
+  var lastDataDay=mSalesDates.length? mSalesDates[mSalesDates.length-1] : today;
+  var domN=Number(lastDataDay.slice(8,10));
+  var nd=new Date(today+'T12:00:00'); var lmDate=new Date(nd.getFullYear(),nd.getMonth()-1,1);
+  var lmStart=lmDate.getFullYear()+'-'+pad2(lmDate.getMonth()+1)+'-01';
+  var lmLen=new Date(lmDate.getFullYear(),lmDate.getMonth()+1,0).getDate();
+  var lmEnd=lmDate.getFullYear()+'-'+pad2(lmDate.getMonth()+1)+'-'+pad2(Math.min(domN,lmLen));
+  function win(br,sD,eD){ var rev=0,food=0; sales90.forEach(function(s){ if((!br||s.branch===br)&&s.date>=sD&&s.date<=eD) rev+=Number(s.net_total)||0; }); inv90.forEach(function(s){ if((!br||s.branch===br)&&s.date>=sD&&s.date<=eD) food+=Number(s.amount)||0; }); return {rev:rev,food:food}; }
+  function pctS(o){ return o.rev?(o.food/o.rev*100).toFixed(1)+'%':'0%'; }
+  var tAll=win(null,mStart,lastDataDay), lAll=win(null,lmStart,lmEnd);
+  var revChg=lAll.rev?((tAll.rev-lAll.rev)/lAll.rev*100).toFixed(1):'0';
+  var cmpCtx='SAME-PERIOD COMPARISON (this month day 1-'+domN+' vs last month day 1-'+Math.min(domN,lmLen)+', apples-to-apples — use THIS for "same time last month" questions):\n'+
+    '  This month ('+mStart+' to '+lastDataDay+'): revenue '+nzd(tAll.rev)+', food '+nzd(tAll.food)+' ('+pctS(tAll)+')\n'+
+    '  Last month same days ('+lmStart+' to '+lmEnd+'): revenue '+nzd(lAll.rev)+', food '+nzd(lAll.food)+' ('+pctS(lAll)+')\n'+
+    '  Revenue change vs same period: '+(revChg>=0?'+':'')+revChg+'%\n'+
+    ['CBD','Rototuna'].map(function(br){ var t=win(br,mStart,lastDataDay), l=win(br,lmStart,lmEnd); return '  '+br+': this month '+nzd(t.rev)+' ('+pctS(t)+' food) vs last month same days '+nzd(l.rev)+' ('+pctS(l)+' food)'; }).join('\n')+'\n\n';
   // Compose full context
   assistantContext=
     'RESTAURANT: Saigon Noon, Vietnamese, Hamilton NZ. Two branches: CBD and Rototuna.\n'+
     'TODAY: '+today+' ('+DAYS[new Date().getDay()]+') | Current view: '+start+(start!==end?' to '+end:'')+' ('+period+')\n\n'+
     cashCtx+
     plCtx+
+    cmpCtx+
     'MONTHLY PERFORMANCE:\n'+
     '  '+monthSummary(salesTM,invTM,'This month (so far)')+'\n'+
     '  '+monthSummary(salesLM,invLM,'Last month')+'\n'+
