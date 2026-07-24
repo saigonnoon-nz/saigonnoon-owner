@@ -1930,13 +1930,14 @@ async function updateAssistantSnapshotFull(){
   const d90=localDateStr(new Date(Date.now()-90*864e5));
   const d30=localDateStr(new Date(Date.now()-30*864e5));
   const d60=localDateStr(new Date(Date.now()-60*864e5));
-  let sales90=[], inv90=[];
+  let sales90=[], inv90=[], bankBals=[], upBills=[];
   try{
     [sales90, inv90]=await Promise.all([
       sbGet('sales','branch=neq.null&date=gte.'+d90+'&date=lte.'+today+'&order=date'),
       sbGet('invoices','date=gte.'+d90+'&date=lte.'+today+'&order=date'),
     ]);
   }catch(e){ sales90=cachedSales; inv90=cachedInvoices; console.error('AI context fetch failed',e); }
+  try{ [bankBals, upBills]=await Promise.all([ sbGet('bank_balances','order=date.desc&limit=20'), sbGet('upcoming_bills','paid=eq.false&order=date.asc') ]); }catch(e){ bankBals=[]; upBills=[]; }
   // Fetch invoice line items — last 30 days so AI can compare specific days
   const weekStart=getMondayStr(new Date());
   const lastWeekStart=localDateStr(new Date(new Date(weekStart).getTime()-7*864e5));
@@ -2113,10 +2114,20 @@ async function updateAssistantSnapshotFull(){
           ).join('\n');
       }).join('\n')+'\n\n'
     : '';
+  // Cash flow context (live bank balances + upcoming bills)
+  var latestBal={}; bankBals.forEach(function(b){ if(latestBal[b.account]===undefined) latestBal[b.account]=Number(b.balance); });
+  var totalCash=0; ['CBD','Rototuna','CBD Saving','Rototuna Saving'].forEach(function(a){ totalCash+=(latestBal[a]||0); });
+  var billsTotal=upBills.reduce(function(s,b){ return s+Number(b.amount); },0);
+  var cashCtx='CASH FLOW (live bank via Akahu):\n'+
+    '  Total in bank now: '+nzd(totalCash)+'\n'+
+    '  CBD '+nzd(latestBal['CBD']||0)+' | Rototuna '+nzd(latestBal['Rototuna']||0)+' | CBD Saving (tax pot) '+nzd(latestBal['CBD Saving']||0)+' | Rototuna Saving (rent pot) '+nzd(latestBal['Rototuna Saving']||0)+'\n'+
+    '  Upcoming bills (unpaid):\n'+(upBills.length? upBills.map(function(b){ return '    '+b.date+' · '+b.name+' · '+nzd(b.amount); }).join('\n') : '    none')+'\n'+
+    '  Total upcoming bills: '+nzd(billsTotal)+'\n\n';
   // Compose full context
   assistantContext=
     'RESTAURANT: Saigon Noon, Vietnamese, Hamilton NZ. Two branches: CBD and Rototuna.\n'+
     'TODAY: '+today+' ('+DAYS[new Date().getDay()]+') | Current view: '+start+(start!==end?' to '+end:'')+' ('+period+')\n\n'+
+    cashCtx+
     'MONTHLY PERFORMANCE:\n'+
     '  '+monthSummary(salesTM,invTM,'This month (so far)')+'\n'+
     '  '+monthSummary(salesLM,invLM,'Last month')+'\n'+
