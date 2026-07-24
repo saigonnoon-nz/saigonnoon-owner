@@ -2123,11 +2123,27 @@ async function updateAssistantSnapshotFull(){
     '  CBD '+nzd(latestBal['CBD']||0)+' | Rototuna '+nzd(latestBal['Rototuna']||0)+' | CBD Saving (tax pot) '+nzd(latestBal['CBD Saving']||0)+' | Rototuna Saving (rent pot) '+nzd(latestBal['Rototuna Saving']||0)+'\n'+
     '  Upcoming bills (unpaid):\n'+(upBills.length? upBills.map(function(b){ return '    '+b.date+' · '+b.name+' · '+nzd(b.amount); }).join('\n') : '    none')+'\n'+
     '  Total upcoming bills: '+nzd(billsTotal)+'\n\n';
+  // Labour & profit (last 30 days, per branch) using the same business model as the P&L tab
+  try{ if(typeof renderLabour==='function') renderLabour(); }catch(e){}
+  function bNet30(br){ return sales90.filter(function(s){return s.branch===br&&s.date>=d30;}).reduce(function(a,s){return a+(Number(s.net_total)||0);},0); }
+  function bFood30(br){ return inv90.filter(function(s){return s.branch===br&&s.date>=d30;}).reduce(function(a,s){return a+(Number(s.amount)||0);},0); }
+  var plCtx='LABOUR & PROFIT (last 30 days, business model = net revenue − food − labour − fixed):\n';
+  ['CBD','Rototuna'].forEach(function(br){
+    var net=bNet30(br), food=bFood30(br), lab=0, fix=0;
+    try{ lab=calcLabour(br,d30,today).cost; }catch(e){}
+    try{ fix=calcFixed(br,d30,today); }catch(e){}
+    var profit=net-food-lab-fix;
+    plCtx+='  '+br+': revenue '+nzd(net)+' | food '+nzd(food)+' ('+(net?(food/net*100).toFixed(0):'0')+'%) | labour '+nzd(lab)+' ('+(net?(lab/net*100).toFixed(0):'0')+'%) | fixed '+nzd(fix)+' | PROFIT '+nzd(profit)+'\n';
+  });
+  plCtx+='  Weekly labour now: CBD '+nzd((rosterLabour.CBD&&rosterLabour.CBD.cost)||0)+' | Rototuna '+nzd((rosterLabour.Rototuna&&rosterLabour.Rototuna.cost)||0)+'\n';
+  plCtx+='  Active staff: '+(allStaff||[]).filter(function(s){return s.active;}).map(function(s){return s.name+' ('+(s.branch||'?')+', $'+s.hourly_rate+'/h '+(s.position||'')+')';}).join(', ')+'\n'+
+    '  Targets: food <30%, labour <35%, fixed <25% of net sales.\n\n';
   // Compose full context
   assistantContext=
     'RESTAURANT: Saigon Noon, Vietnamese, Hamilton NZ. Two branches: CBD and Rototuna.\n'+
     'TODAY: '+today+' ('+DAYS[new Date().getDay()]+') | Current view: '+start+(start!==end?' to '+end:'')+' ('+period+')\n\n'+
     cashCtx+
+    plCtx+
     'MONTHLY PERFORMANCE:\n'+
     '  '+monthSummary(salesTM,invTM,'This month (so far)')+'\n'+
     '  '+monthSummary(salesLM,invLM,'Last month')+'\n'+
@@ -2222,7 +2238,7 @@ async function sendChat(){
   const inp=$('chatInput'), q=inp.value.trim(); if(!q) return;
   inp.value=''; chatHistory.push({role:'user',content:q}); appendMsg('user',q); appendMsg('assistant','Thinking…','loading'); $('chatSendBtn').disabled=true;
   const ctx=assistantContext||'No restaurant data loaded yet — ask Erik to refresh the page.';
-  const instruction='You are a data assistant for Erik, owner of Saigon Noon restaurant in Hamilton NZ (two branches: CBD and Rototuna).\n\nYou have his live restaurant data below. Read numbers directly from the data — never estimate.\n\nLIVE DATA:\n'+ctx+'\n\nDATA DEFINITIONS:\n- unit_price / @ price = cost per single unit (kg, piece, etc.) — use this for "most expensive" or "price per unit" questions.\n- total = total spend on that item — use this for "costs the most" or "biggest spend" questions.\n- qty = quantity purchased.\n\nSTRICT RULES:\n1. If Erik asks for a number, answer in ONE sentence with ONLY that number. Nothing else.\n2. "Most expensive ingredient" means highest unit price, NOT highest total spend.\n3. "Which costs the most" means highest total spend.\n4. Never add comparisons, observations, or suggestions unless Erik asks.\n5. No markdown — no bold, no asterisks, no bullet points, no headers.\n6. Invoice notes ([notes: ...]) contain manually entered item details — always search inside notes when looking for an ingredient or item not found as a standalone line item. For example if pork belly is not a line item but appears inside a Butchery invoice note, treat it as a valid match.\n7. If the exact number is not in the data, say so in one sentence only.\nExamples: Q: most expensive ingredient? A: Beef tenderloin is the most expensive at $32.50/kg. Q: what costs the most in total? A: Beef cannon bone costs the most in total at $480 this week.';
+  const instruction='You are Erik\'s business partner and data assistant for Saigon Noon (Vietnamese restaurant, Hamilton NZ; two branches: CBD and Rototuna). You have his LIVE data below — cash flow (live bank balances + upcoming bills), profit/P&L, sales, food cost, labour, suppliers and ingredients. He may be away from his computer and relying on you, so be genuinely useful.\n\nLIVE DATA:\n'+ctx+'\n\nHOW TO HELP:\n- Read every number directly from the data — never invent or estimate. If something is not in the data, say so plainly.\n- Plain number/lookup question: answer in one short sentence with just the number.\n- Broader questions (how are we doing, cash flow, can I afford X, what should I pay, P&L, food or labour cost, staffing, planning): answer like a sharp, honest business partner using the real numbers. You may compare, flag risks, and recommend what to do.\n- Cash flow: the data shows total bank now, each account (CBD Saving = tax pot, Rototuna Saving = rent pot), and every upcoming bill with dates. Help him decide what to pay and when, always protect wages first, and keep the accounts from going negative.\n- Keep answers concise and plain — no markdown, no bold, no asterisks, no bullet points, no headers. Short sentences and short paragraphs only.\n\nDATA DEFINITIONS:\n- unit_price / @ price = cost per single unit (use for "most expensive" / "price per unit").\n- total = total spend on that item (use for "costs the most" / "biggest spend").\n- qty = quantity purchased.\n- Invoice notes ([notes: ...]) hold manually entered item details — always search inside notes for an ingredient not found as a standalone line item (e.g. pork belly inside a Butchery invoice note counts as a match).\n- Profit = net revenue − food − labour − fixed. Targets: food under 30%, labour under 35%, fixed under 25% of net sales.';
   const apiMessages=[{role:'user',content:instruction},{role:'assistant',content:'Got it, I have the live data. What would you like to know?'},...chatHistory];
   try{
     const r=await fetch(AI_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:apiMessages,max_tokens:300})});
