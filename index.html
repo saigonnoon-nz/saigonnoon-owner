@@ -10,7 +10,7 @@
 const OWNER_PASS = 'Saigon@2018';
 const SESSION_KEY = 'sn_owner_auth';
 function checkAuth() {
-  if (sessionStorage.getItem(SESSION_KEY) === '1') return;
+  if (sessionStorage.getItem(SESSION_KEY) === OWNER_PASS) return;
   document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('authGate').style.display = 'flex';
     document.getElementById('authPwInput').focus();
@@ -19,7 +19,7 @@ function checkAuth() {
 function tryLogin() {
   const val = document.getElementById('authPwInput').value;
   if (val === OWNER_PASS) {
-    sessionStorage.setItem(SESSION_KEY, '1');
+    sessionStorage.setItem(SESSION_KEY, OWNER_PASS);
     document.getElementById('authGate').style.display = 'none';
     updatePeriodLabel(); loadAll();
   } else {
@@ -36,7 +36,7 @@ document.addEventListener('keydown', function(e) {
 });
 checkAuth();
 document.addEventListener('DOMContentLoaded', function(){
-  if(sessionStorage.getItem(SESSION_KEY)==='1'){ updatePeriodLabel(); loadAll(); }
+  if(sessionStorage.getItem(SESSION_KEY)===OWNER_PASS){ updatePeriodLabel(); loadAll(); }
 });
 </script>
 <style>
