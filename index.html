@@ -623,7 +623,7 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 <div class="section" id="sec-prices">
   <!-- info note -->
   <div style="font-size:11px;color:var(--t3);margin-bottom:10px;padding:8px 12px;background:var(--s2);border-radius:8px;border-left:3px solid var(--border)">
-    📦 Shows all-time unit price history from your invoices — <strong style="color:var(--t2)">both branches combined</strong>. Not affected by the week/month selector above. Spikes = latest price ≥10% above historical average.
+    📦 Shows unit price history from your invoices — <strong style="color:var(--t2)">both branches combined</strong>. Opens automatically showing items where price changed ≥3%. Click any row to see the full price history with dates.
   </div>
   <!-- spike alert -->
   <div id="priceAlertBanner" style="display:none;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);border-radius:10px;padding:11px 14px;margin-bottom:14px">
@@ -632,7 +632,7 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
       <span style="font-size:11px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.5px">Price Spikes Detected</span>
     </div>
     <div id="priceAlertList" style="font-size:11px;color:var(--t2);line-height:2"></div>
-    <div style="font-size:10px;color:var(--t3);margin-top:4px">Latest unit price is ≥10% above historical average</div>
+    <div style="font-size:10px;color:var(--t3);margin-top:4px">Items where latest unit price changed ≥3% vs historical average</div>
   </div>
   <!-- controls -->
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
@@ -641,7 +641,7 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
       <option value="">All Suppliers</option>
     </select>
     <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t3);cursor:pointer;white-space:nowrap">
-      <input type="checkbox" id="priceSpikesOnly" onchange="filterPriceTable()" style="accent-color:var(--red)"> Spikes only
+      <input type="checkbox" id="priceSpikesOnly" onchange="this._userTouched=true;filterPriceTable()" style="accent-color:var(--red)"> Changes only (≥3%)
     </label>
   </div>
   <!-- table -->
@@ -1436,9 +1436,10 @@ function buildPriceRows(){
       item:g.item, unit:g.unit, supplier:g.supplier,
       latest:latest.price, latestDate:latest.date,
       avg:+avg.toFixed(2), change:+change.toFixed(1),
-      isSpike:change>=10, isDrop:change<=-10,
+      isSpike:change>=3, isDrop:change<=-3,
       count:g.entries.length,
-      history:g.entries.slice(-6).map(e=>e.price)
+      history:g.entries.slice(-8).map(e=>e.price),
+      histFull:g.entries.slice(-12).map(e=>({date:e.date,price:e.price}))
     });
   });
   return rows;
@@ -1452,6 +1453,8 @@ function miniSparkline(hist){
   const clr=hist[hist.length-1]>=hist[0]?'#f87171':'#34d399';
   return '<svg width="'+W+'" height="'+H+'" style="vertical-align:middle;margin-left:4px;opacity:.8"><polyline points="'+pts+'" fill="none" stroke="'+clr+'" stroke-width="1.5" stroke-linejoin="round"/></svg>';
 }
+
+let _priceDisplayRows=[], _priceExpandedIdx=-1;
 
 function renderPriceTracker(){
   try{
@@ -1467,19 +1470,32 @@ function renderPriceTracker(){
     const supSel=$('priceSupplier');
     const curSup=supSel.value;
     supSel.innerHTML='<option value="">All Suppliers</option>'+sups.map(s=>'<option'+(s===curSup?' selected':'')+'>'+s+'</option>').join('');
-    // Spike alert banner
-    const spikes=_priceRows.filter(r=>r.isSpike).sort((a,b)=>b.change-a.change);
+    // Alert banner: show price INCREASES ≥3%
+    const increased=_priceRows.filter(r=>r.isSpike).sort((a,b)=>b.change-a.change);
+    const dropped=_priceRows.filter(r=>r.isDrop).sort((a,b)=>a.change-b.change);
     const banner=$('priceAlertBanner');
-    if(spikes.length){
+    if(increased.length||dropped.length){
       banner.style.display='block';
-      $('priceAlertList').innerHTML=spikes.slice(0,6).map(r=>
-        '<span style="display:inline-flex;align-items:center;gap:5px;background:rgba(248,113,113,.12);border-radius:4px;padding:2px 9px;margin:2px 3px 2px 0">'+
-        '<span style="color:var(--red);font-weight:700">+'+r.change.toFixed(0)+'%</span>'+
-        '<span style="color:var(--t2)">'+r.item+'</span>'+
-        '<span style="color:var(--t3);font-size:10px">'+r.supplier+' · $'+r.avg.toFixed(2)+'→$'+r.latest.toFixed(2)+'/'+r.unit+'</span>'+
-        '</span>'
-      ).join('');
+      let html='';
+      increased.forEach(r=>{
+        html+='<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(248,113,113,.12);border-radius:4px;padding:2px 9px;margin:2px 3px 2px 0">'+
+          '<span style="color:var(--red);font-weight:700">▲ +'+r.change.toFixed(0)+'%</span>'+
+          '<span style="color:var(--t2)">'+r.item+'</span>'+
+          '<span style="color:var(--t3);font-size:10px">$'+r.avg.toFixed(2)+'→$'+r.latest.toFixed(2)+'/'+r.unit+'</span>'+
+          '</span>';
+      });
+      dropped.forEach(r=>{
+        html+='<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(52,211,153,.10);border-radius:4px;padding:2px 9px;margin:2px 3px 2px 0">'+
+          '<span style="color:var(--green);font-weight:700">▼ '+r.change.toFixed(0)+'%</span>'+
+          '<span style="color:var(--t2)">'+r.item+'</span>'+
+          '<span style="color:var(--t3);font-size:10px">$'+r.avg.toFixed(2)+'→$'+r.latest.toFixed(2)+'/'+r.unit+'</span>'+
+          '</span>';
+      });
+      $('priceAlertList').innerHTML=html;
     } else { banner.style.display='none'; }
+    // Auto-show changed items on first load (if checkbox hasn't been manually changed)
+    const chkEl=$('priceSpikesOnly');
+    if(!chkEl._userTouched && (increased.length||dropped.length)) chkEl.checked=true;
     filterPriceTable();
   }catch(e){ console.error('renderPriceTracker error',e); }
 }
@@ -1489,11 +1505,11 @@ function filterPriceTable(){
     const searchEl=$('priceSearch'); if(!searchEl) return;
     const search=searchEl.value.toLowerCase().trim();
     const sup=$('priceSupplier').value;
-    const spikesOnly=$('priceSpikesOnly').checked;
+    const changesOnly=$('priceSpikesOnly').checked;
     let rows=_priceRows.filter(r=>{
       if(search&&!normItem(r.item).includes(search)&&!r.supplier.toLowerCase().includes(search)) return false;
       if(sup&&r.supplier!==sup) return false;
-      if(spikesOnly&&!r.isSpike) return false;
+      if(changesOnly&&!r.isSpike&&!r.isDrop) return false;
       return true;
     });
     rows.sort((a,b)=>{
@@ -1501,37 +1517,71 @@ function filterPriceTable(){
       if(_priceSort.col==='item'){va=a.item.toLowerCase();vb=b.item.toLowerCase();}
       else if(_priceSort.col==='latest'){va=a.latest;vb=b.latest;}
       else if(_priceSort.col==='avg'){va=a.avg;vb=b.avg;}
-      else{va=a.change;vb=b.change;}
+      else{va=Math.abs(a.change);vb=Math.abs(b.change);}
       return _priceSort.asc?(va>vb?1:-1):(va<vb?1:-1);
     });
+    _priceDisplayRows=rows;
+    _priceExpandedIdx=-1;
     const tbody=$('priceTableBody');
     const emptyEl=$('priceTableEmpty');
     if(!rows.length){
       tbody.innerHTML='';
       emptyEl.style.display='block';
-      emptyEl.textContent=search?'No items matching "'+search+'"':'No items to show';
+      emptyEl.textContent=search?'No items matching "'+search+'"':changesOnly?'No price changes ≥3% detected':'No items to show';
       $('priceTableCount').textContent='';
       return;
     }
     emptyEl.style.display='none';
-    $('priceTableCount').textContent=rows.length+' item'+(rows.length!==1?'s':(''+(rows.length===_priceRows.length?'':' of '+_priceRows.length+' total')));
-    const chgColor=c=>c>=10?'var(--red)':c<=-10?'var(--green)':c>5?'var(--amber)':'var(--t3)';
-    const chgIcon=c=>c>=10?'▲':c<=-10?'▼':c>0?'↑':'↓';
-    tbody.innerHTML=rows.map(r=>{
+    $('priceTableCount').textContent=rows.length+' item'+(rows.length!==1?'s':'')+' — click any row to see price history';
+    const chgColor=c=>c>=3?'var(--red)':c<=-3?'var(--green)':c>0?'var(--amber)':'var(--t3)';
+    const chgIcon=c=>c>=3?'▲':c<=-3?'▼':c>0?'↑':'↓';
+    let html='';
+    rows.forEach((r,i)=>{
       const d=new Date(r.latestDate+'T12:00:00');
       const dLbl=d.toLocaleDateString('en-NZ',{day:'numeric',month:'short'});
       const c=r.change;
       const rowBg=r.isSpike?'background:rgba(248,113,113,.05)':r.isDrop?'background:rgba(52,211,153,.05)':'';
-      return '<tr style="'+rowBg+'">'+
+      html+='<tr style="'+rowBg+';cursor:pointer" onclick="togglePriceHistory('+i+')">'+
         '<td><span style="font-weight:600;color:var(--t1)">'+r.item+'</span><span style="font-size:10px;color:var(--t3);margin-left:4px">'+r.unit+'</span>'+miniSparkline(r.history)+'</td>'+
         '<td style="color:var(--t3);font-size:11px">'+r.supplier+'</td>'+
         '<td style="text-align:right;font-weight:700;color:var(--t1)">$'+r.latest.toFixed(2)+'</td>'+
         '<td style="text-align:right;color:var(--t3)">$'+r.avg.toFixed(2)+'</td>'+
         '<td style="text-align:right;font-weight:700;color:'+chgColor(c)+'">'+chgIcon(c)+' '+Math.abs(c).toFixed(1)+'%</td>'+
-        '<td style="text-align:right;color:var(--t3);font-size:10px">'+dLbl+' <span style="opacity:.5">('+r.count+'x)</span></td>'+
+        '<td style="text-align:right;color:var(--t3);font-size:10px">'+dLbl+'</td>'+
       '</tr>';
-    }).join('');
+      // Expandable history row
+      html+='<tr id="priceHist_'+i+'" style="display:none;background:var(--s1)">'+
+        '<td colspan="6" style="padding:10px 14px">'+
+          '<div style="font-size:10px;color:var(--t3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Price history — '+r.item+' / '+r.unit+'</div>'+
+          '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
+            r.histFull.map((h,hi)=>{
+              const hd=new Date(h.date+'T12:00:00');
+              const hdLbl=hd.toLocaleDateString('en-NZ',{day:'numeric',month:'short',year:'2-digit'});
+              const prevP=hi>0?r.histFull[hi-1].price:null;
+              const delta=prevP!=null?((h.price-prevP)/prevP*100):null;
+              const dotClr=delta==null?'var(--t3)':delta>=3?'var(--red)':delta<=-3?'var(--green)':'var(--amber)';
+              return '<div style="background:var(--s2);border-radius:6px;padding:5px 10px;text-align:center;min-width:72px">'+
+                '<div style="font-size:9px;color:var(--t3)">'+hdLbl+'</div>'+
+                '<div style="font-size:13px;font-weight:700;color:var(--t1);margin:2px 0">$'+h.price.toFixed(2)+'</div>'+
+                (delta!=null?'<div style="font-size:9px;color:'+dotClr+'">'+(delta>=0?'+':'')+delta.toFixed(1)+'%</div>':'<div style="font-size:9px;color:var(--t3)">baseline</div>')+
+              '</div>';
+            }).join('')+
+          '</div>'+
+        '</td>'+
+      '</tr>';
+    });
+    tbody.innerHTML=html;
   }catch(e){ console.error('filterPriceTable error',e); }
+}
+
+function togglePriceHistory(i){
+  const el=document.getElementById('priceHist_'+i);
+  if(!el) return;
+  const isOpen=el.style.display!=='none';
+  // Close all
+  _priceDisplayRows.forEach((_,j)=>{const e=document.getElementById('priceHist_'+j);if(e)e.style.display='none';});
+  if(!isOpen) el.style.display='table-row';
+  _priceExpandedIdx=isOpen?-1:i;
 }
 
 function setPriceSort(col){
