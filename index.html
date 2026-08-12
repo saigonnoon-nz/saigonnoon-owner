@@ -354,6 +354,7 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
   <div class="nav-item" onclick="showSection('cashflow',this)">💸 Cash Flow</div>
   <div class="nav-item" onclick="showSection('foodcost',this)">🥗 Food Cost</div>
   <div class="nav-item" onclick="showSection('assistant',this)">🧠 Assistant</div>
+  <div class="nav-item" onclick="showSection('prices',this)">🏷️ Prices</div>
   <div class="nav-item" onclick="showSection('labour',this)">📅 Roster</div>
   <div class="nav-item" onclick="showSection('staff',this)">👤 Staff</div>
 </div>
@@ -618,6 +619,52 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
   </div>
 </div>
 
+<!-- PRICE TRACKER -->
+<div class="section" id="sec-prices">
+  <!-- spike alert -->
+  <div id="priceAlertBanner" style="display:none;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);border-radius:10px;padding:11px 14px;margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <span style="font-size:13px">🚨</span>
+      <span style="font-size:11px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.5px">Price Spikes Detected</span>
+    </div>
+    <div id="priceAlertList" style="font-size:11px;color:var(--t2);line-height:2"></div>
+    <div style="font-size:10px;color:var(--t3);margin-top:4px">Items where latest unit price is ≥10% above their recent average</div>
+  </div>
+  <!-- controls -->
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+    <input id="priceSearch" type="text" placeholder="Search item…" oninput="filterPriceTable()" style="flex:1;min-width:150px;background:var(--s2);border:1px solid var(--border);color:var(--t1);border-radius:8px;padding:7px 11px;font-size:13px">
+    <select id="priceSupplier" onchange="filterPriceTable()" style="background:var(--s2);border:1px solid var(--border);color:var(--t1);border-radius:8px;padding:7px 10px;font-size:13px">
+      <option value="">All Suppliers</option>
+    </select>
+    <select id="priceBranch" onchange="filterPriceTable()" style="background:var(--s2);border:1px solid var(--border);color:var(--t1);border-radius:8px;padding:7px 10px;font-size:13px">
+      <option value="">Both Branches</option>
+      <option>CBD</option>
+      <option>Rototuna</option>
+    </select>
+    <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t3);cursor:pointer;white-space:nowrap">
+      <input type="checkbox" id="priceSpikesOnly" onchange="filterPriceTable()" style="accent-color:var(--red)"> Spikes only
+    </label>
+  </div>
+  <!-- table -->
+  <div class="card" style="padding:0;overflow:hidden">
+    <table class="tbl" id="priceTable" style="font-size:12px">
+      <thead>
+        <tr>
+          <th onclick="setPriceSort('item')" style="cursor:pointer">Item ↕</th>
+          <th>Supplier</th>
+          <th onclick="setPriceSort('latest')" style="cursor:pointer;text-align:right">Latest ↕</th>
+          <th onclick="setPriceSort('avg')" style="cursor:pointer;text-align:right">Avg (4wk) ↕</th>
+          <th onclick="setPriceSort('change')" style="cursor:pointer;text-align:right">Change ↕</th>
+          <th style="text-align:right">Last Seen</th>
+        </tr>
+      </thead>
+      <tbody id="priceTableBody"></tbody>
+    </table>
+    <div id="priceTableEmpty" style="display:none;text-align:center;padding:24px;color:var(--t3);font-size:13px">No items match your filters</div>
+  </div>
+  <div id="priceTableCount" style="font-size:10px;color:var(--t3);margin-top:6px;text-align:right"></div>
+</div>
+
 <!-- LABOUR / ROSTER -->
 <div class="section" id="sec-labour">
   <div class="kpi-grid">
@@ -823,6 +870,7 @@ let currentDate = new Date();
 let cachedSales=[], cachedInvoices=[], cachedFutureInvoices=[], cachedLastSales=[], cachedLastInvoices=[], allStaff=[], allRoster=[];
 let cachedTrendSales=[], cachedTrendInvoices=[];
 let trendChartInst=null;
+let cachedPriceItems=[];
 let rosterLabour={CBD:{cost:0,hours:0},Rototuna:{cost:0,hours:0}}; // single source of truth for weekly labour
 let salesChartInst=null, costChartInst=null, fohbohCBDInst=null, fohbohROTInst=null;
 let bSalesInst={}, bChannelInst={}, supplierChartInst=null, supplierCBDInst=null, supplierROTInst=null;
@@ -985,12 +1033,14 @@ async function loadAll() {
     sbGet('roster','week_start=eq.'+rosterWeekStart+'&order=branch,shift_num'),
     sbGet('sales','branch=neq.null&date=gte.'+d8wAgo+'&order=date'),
     sbGet('invoices','branch=neq.null&date=gte.'+d8wAgo+'&order=date'),
+    sbGet('invoice_items','unit_price=gt.0&order=date,item_name'),
   ]);
   const ok=r=>r.status==='fulfilled'?r.value:[];
   cachedSales=ok(results[0]); cachedInvoices=ok(results[1]); cachedFutureInvoices=ok(results[2]);
   cachedLastSales=ok(results[3]); cachedLastInvoices=ok(results[4]);
   allStaff=ok(results[5]); allRoster=ok(results[6]);
   cachedTrendSales=ok(results[7]); cachedTrendInvoices=ok(results[8]);
+  cachedPriceItems=ok(results[9]);
   const anyFailed=results.some(r=>r.status==='rejected');
   if(anyFailed){
     const failNames=['sales','invoices','future inv','last sales','last inv','staff','roster'];
@@ -1002,7 +1052,7 @@ async function loadAll() {
   }
   updateHeaderStats(); updateRosterWeekLabel();
   renderLabour(); renderSplitView(); renderPL(); renderOverview(); renderBranches(); renderFoodCost(); renderCashFlow();
-  renderMissingAlerts(); renderTrendChart();
+  renderMissingAlerts(); renderTrendChart(); renderPriceTracker();
   if($('sec-assistant').classList.contains('active')) updateAssistantSnapshotFull();
 }
 function updateHeaderStats(){
@@ -1347,6 +1397,141 @@ function renderSuppliers(){
   const sorted=Object.entries(sups).sort((a,b)=>b[1]-a[1]).slice(0,6);
   const groups={Gilmours:'Food',OneStopPak:'Packaging','Drinks Supplier':'Drinks'};
   $('supplierBody').innerHTML=sorted.length?sorted.map(([s,v])=>'<tr><td>'+s+'</td><td><span class="pill '+(groups[s]?'pill-foh':'pill-boh')+'">'+(groups[s]||'Other')+'</span></td><td style="font-weight:700;color:var(--amber)">'+nzd(v)+'</td></tr>').join(''):'<tr><td colspan="3" class="empty">No data</td></tr>';
+}
+
+// ══════ PRICE TRACKER ══════
+let _priceRows=[], _priceSort={col:'change',asc:false};
+
+function normUnit(u){
+  u=(u||'').toLowerCase().trim();
+  if(['kilo','kg','k'].includes(u)) return 'kg';
+  if(['pkt','packet','pack','packs'].includes(u)) return 'pkt';
+  if(['ea','each','each '].includes(u)) return 'ea';
+  if(['ctn','carton'].includes(u)) return 'ctn';
+  if(['tin','tins'].includes(u)) return 'tin';
+  if(['bundle','bdl'].includes(u)) return 'bundle';
+  if(['bag','bags'].includes(u)) return 'bag';
+  return u;
+}
+function normItem(s){ return (s||'').toLowerCase().trim().replace(/\s+/g,' '); }
+
+function buildPriceRows(){
+  // Group by (normItem, normUnit, supplier, branch)
+  const groups={};
+  cachedPriceItems.forEach(r=>{
+    if(!r.item_name||!r.unit_price||Number(r.unit_price)<=0) return;
+    const key=normItem(r.item_name)+'||'+normUnit(r.unit)+'||'+(r.supplier||'')+'||'+(r.branch||'');
+    if(!groups[key]) groups[key]={item:r.item_name,unit:normUnit(r.unit),supplier:r.supplier||'',branch:r.branch||'',entries:[]};
+    groups[key].entries.push({date:r.date,price:Number(r.unit_price)});
+  });
+
+  const cutoff4w=localDateStr(new Date(Date.now()-28*864e5));
+  const rows=[];
+  Object.values(groups).forEach(g=>{
+    if(g.entries.length<2) return;
+    g.entries.sort((a,b)=>a.date.localeCompare(b.date));
+    const latest=g.entries[g.entries.length-1];
+    // 4-week average excluding the most recent entry
+    const prev=g.entries.slice(0,-1).filter(e=>e.date>=cutoff4w);
+    if(!prev.length) return; // not enough history
+    const avg=prev.reduce((s,e)=>s+e.price,0)/prev.length;
+    const change=(latest.price-avg)/avg*100;
+    rows.push({
+      item:g.item, unit:g.unit, supplier:g.supplier, branch:g.branch,
+      latest:latest.price, latestDate:latest.date,
+      avg:+avg.toFixed(4), change:+change.toFixed(1),
+      isSpike:change>=10, isDrop:change<=-10,
+      history:g.entries.slice(-8).map(e=>e.price)
+    });
+  });
+  return rows;
+}
+
+function renderPriceTracker(){
+  _priceRows=buildPriceRows();
+  // Populate supplier dropdown
+  const sups=[...new Set(_priceRows.map(r=>r.supplier))].sort();
+  const supSel=$('priceSupplier');
+  const curSup=supSel.value;
+  supSel.innerHTML='<option value="">All Suppliers</option>'+sups.map(s=>'<option'+(s===curSup?' selected':'')+'>'+s+'</option>').join('');
+  // Spike alert banner
+  const spikes=_priceRows.filter(r=>r.isSpike);
+  const banner=$('priceAlertBanner');
+  if(spikes.length){
+    banner.style.display='block';
+    $('priceAlertList').innerHTML=spikes.slice(0,8).map(r=>
+      '<span style="display:inline-flex;align-items:center;gap:5px;background:rgba(248,113,113,.12);border-radius:4px;padding:1px 8px;margin:2px 3px 2px 0">'+
+      '<span style="color:var(--red);font-weight:700">+'+r.change.toFixed(1)+'%</span>'+
+      '<span style="color:var(--t2)">'+r.item+' ('+r.unit+')</span>'+
+      '<span style="color:var(--t3)">'+r.supplier+'</span>'+
+      '</span>'
+    ).join('');
+  } else { banner.style.display='none'; }
+  filterPriceTable();
+}
+
+function filterPriceTable(){
+  const search=($('priceSearch').value||'').toLowerCase();
+  const sup=$('priceSupplier').value;
+  const branch=$('priceBranch').value;
+  const spikesOnly=$('priceSpikesOnly').checked;
+  let rows=_priceRows.filter(r=>{
+    if(search&&!normItem(r.item).includes(search)) return false;
+    if(sup&&r.supplier!==sup) return false;
+    if(branch&&r.branch!==branch) return false;
+    if(spikesOnly&&!r.isSpike) return false;
+    return true;
+  });
+  // Sort
+  rows.sort((a,b)=>{
+    let va,vb;
+    if(_priceSort.col==='item'){va=a.item.toLowerCase();vb=b.item.toLowerCase();}
+    else if(_priceSort.col==='latest'){va=a.latest;vb=b.latest;}
+    else if(_priceSort.col==='avg'){va=a.avg;vb=b.avg;}
+    else{va=a.change;vb=b.change;}
+    return _priceSort.asc?(va>vb?1:-1):(va<vb?1:-1);
+  });
+  const tbody=$('priceTableBody');
+  if(!rows.length){
+    tbody.innerHTML='';
+    $('priceTableEmpty').style.display='block';
+    $('priceTableCount').textContent='';
+    return;
+  }
+  $('priceTableEmpty').style.display='none';
+  $('priceTableCount').textContent=rows.length+' item'+(rows.length!==1?'s':'');
+  const chgColor=c=>c>=10?'var(--red)':c<=-10?'var(--green)':c>5?'var(--amber)':'var(--t3)';
+  const chgArrow=c=>c>=10?'▲ ':c<=-10?'▼ ':c>0?'↑ ':c<0?'↓ ':'';
+  const mini=(hist)=>{
+    if(hist.length<2) return '';
+    const mn=Math.min(...hist),mx=Math.max(...hist),rng=mx-mn||1;
+    return '<svg width="48" height="18" style="vertical-align:middle;opacity:.7">'+
+      hist.map((v,i)=>{
+        const x=i*(48/(hist.length-1));
+        const y=16-(v-mn)/rng*14;
+        return i===0?'M'+x+','+y:'L'+x+','+y;
+      }).join('')
+      .replace(/^/,'<polyline points="'+hist.map((v,i)=>i*(48/(hist.length-1))+','+(16-(v-mn)/rng*14)).join(' ')+'" fill="none" stroke="'+(hist[hist.length-1]>hist[0]?'#f87171':'#34d399')+'" stroke-width="1.5"/></svg>');
+  };
+  tbody.innerHTML=rows.map(r=>{
+    const d=new Date(r.latestDate+'T12:00:00');
+    const dLbl=d.toLocaleDateString('en-NZ',{day:'numeric',month:'short'});
+    const c=r.change;
+    return '<tr style="'+(r.isSpike?'background:rgba(248,113,113,.04)':r.isDrop?'background:rgba(52,211,153,.04)':'')+'">'+
+      '<td><span style="font-weight:600;color:var(--t1)">'+r.item+'</span> <span style="font-size:10px;color:var(--t3)">/ '+r.unit+'</span> '+mini(r.history)+'</td>'+
+      '<td style="color:var(--t3)">'+r.supplier+'</td>'+
+      '<td style="text-align:right;font-weight:700;color:var(--t1)">$'+r.latest.toFixed(2)+'</td>'+
+      '<td style="text-align:right;color:var(--t3)">$'+r.avg.toFixed(2)+'</td>'+
+      '<td style="text-align:right;font-weight:700;color:'+chgColor(c)+'">'+chgArrow(c)+Math.abs(c).toFixed(1)+'%</td>'+
+      '<td style="text-align:right;color:var(--t3);font-size:10px">'+dLbl+'</td>'+
+    '</tr>';
+  }).join('');
+}
+
+function setPriceSort(col){
+  if(_priceSort.col===col) _priceSort.asc=!_priceSort.asc;
+  else { _priceSort.col=col; _priceSort.asc=col==='item'; }
+  filterPriceTable();
 }
 
 // ══════ RENDER WoW ══════
