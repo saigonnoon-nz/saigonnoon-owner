@@ -1038,16 +1038,11 @@ async function loadAll() {
   cachedLastSales=ok(results[3]); cachedLastInvoices=ok(results[4]);
   allStaff=ok(results[5]); allRoster=ok(results[6]);
   cachedTrendSales=ok(results[7]); cachedTrendInvoices=ok(results[8]);
-  // Paginated fetch for invoice_items (Supabase caps at 1000/request, we have 2700+ rows)
+  // Fetch pre-aggregated price data via DB function (no row limits, bypasses RLS)
   try {
-    const iiParams='unit_price=gt.0&order=date,item_name&limit=1000';
-    const [pi1,pi2,pi3]=await Promise.all([
-      sbGet('invoice_items',iiParams+'&offset=0'),
-      sbGet('invoice_items',iiParams+'&offset=1000'),
-      sbGet('invoice_items',iiParams+'&offset=2000'),
-    ]);
-    cachedPriceItems=[...pi1,...pi2,...pi3];
-  } catch(e){ console.warn('Price items load error',e); cachedPriceItems=[]; }
+    const priceData=await sbPost('rpc/get_price_tracker',{});
+    cachedPriceItems=Array.isArray(priceData)?priceData:[];
+  } catch(e){ console.warn('Price tracker RPC error:',e); cachedPriceItems=[]; }
   const anyFailed=results.some(r=>r.status==='rejected');
   if(anyFailed){
     const failNames=['sales','invoices','future inv','last sales','last inv','staff','roster'];
@@ -1423,33 +1418,25 @@ function normUnit(u){
 function normItem(s){ return (s||'').toLowerCase().trim().replace(/\s+/g,' '); }
 
 function buildPriceRows(){
-  // Group by (normalized item name + normalized unit + supplier)
-  const groups={};
-  cachedPriceItems.forEach(r=>{
-    if(!r.item_name||!r.unit_price||Number(r.unit_price)<=0) return;
-    const key=normItem(r.item_name)+'||'+normUnit(r.unit)+'||'+(r.supplier||'');
-    if(!groups[key]) groups[key]={item:r.item_name,unit:normUnit(r.unit),supplier:r.supplier||'',entries:[]};
-    groups[key].entries.push({date:r.date,price:Number(r.unit_price)});
+  // cachedPriceItems comes pre-aggregated from get_price_tracker() DB function
+  return cachedPriceItems.map(r=>{
+    const change=Number(r.pct_change)||0;
+    const hist=Array.isArray(r.price_history)?r.price_history:[];
+    return {
+      item:r.item_name||'',
+      unit:r.unit||'',
+      supplier:r.supplier||'',
+      latest:Number(r.latest_price)||0,
+      latestDate:r.latest_date||'',
+      avg:Number(r.hist_avg)||0,
+      change:+change.toFixed(1),
+      isSpike:change>=3,
+      isDrop:change<=-3,
+      count:Number(r.purchase_count)||1,
+      history:hist.slice(-8).map(h=>Number(h.price)),
+      histFull:hist.slice(-12).map(h=>({date:h.date,price:Number(h.price)}))
+    };
   });
-  const rows=[];
-  Object.values(groups).forEach(g=>{
-    if(g.entries.length<2) return;
-    g.entries.sort((a,b)=>a.date.localeCompare(b.date));
-    const latest=g.entries[g.entries.length-1];
-    const prev=g.entries.slice(0,-1);
-    const avg=prev.reduce((s,e)=>s+e.price,0)/prev.length;
-    const change=(latest.price-avg)/avg*100;
-    rows.push({
-      item:g.item, unit:g.unit, supplier:g.supplier,
-      latest:latest.price, latestDate:latest.date,
-      avg:+avg.toFixed(2), change:+change.toFixed(1),
-      isSpike:change>=3, isDrop:change<=-3,
-      count:g.entries.length,
-      history:g.entries.slice(-8).map(e=>e.price),
-      histFull:g.entries.slice(-12).map(e=>({date:e.date,price:e.price}))
-    });
-  });
-  return rows;
 }
 
 function miniSparkline(hist){
@@ -1468,7 +1455,8 @@ function renderPriceTracker(){
     if(!cachedPriceItems.length){
       $('priceTableBody').innerHTML='';
       $('priceTableEmpty').style.display='block';
-      $('priceTableEmpty').textContent='No item data loaded yet — reload the page.';
+      $('priceTableEmpty').textContent='⚠️ Price data failed to load — try clicking Refresh.';
+      $('priceTableCount').textContent='';
       return;
     }
     _priceRows=buildPriceRows();
@@ -1500,9 +1488,6 @@ function renderPriceTracker(){
       });
       $('priceAlertList').innerHTML=html;
     } else { banner.style.display='none'; }
-    // Auto-show changed items on first load (if checkbox hasn't been manually changed)
-    const chkEl=$('priceSpikesOnly');
-    if(!chkEl._userTouched && (increased.length||dropped.length)) chkEl.checked=true;
     filterPriceTable();
   }catch(e){ console.error('renderPriceTracker error',e); }
 }
