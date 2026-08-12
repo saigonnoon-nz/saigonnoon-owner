@@ -1032,7 +1032,7 @@ async function loadAll() {
     sbGet('roster','week_start=eq.'+rosterWeekStart+'&order=branch,shift_num'),
     sbGet('sales','branch=neq.null&date=gte.'+d8wAgo+'&order=date'),
     sbGet('invoices','branch=neq.null&date=gte.'+d8wAgo+'&order=date'),
-    sbGet('invoice_items','unit_price=gt.0&order=date,item_name&limit=5000'),
+    sbGet('price_tracker','order=pct_change.desc'),
   ]);
   const ok=r=>r.status==='fulfilled'?r.value:[];
   cachedSales=ok(results[0]); cachedInvoices=ok(results[1]); cachedFutureInvoices=ok(results[2]);
@@ -1415,34 +1415,27 @@ function normUnit(u){
 function normItem(s){ return (s||'').toLowerCase().trim().replace(/\s+/g,' '); }
 
 function buildPriceRows(){
-  const groups={};
-  cachedPriceItems.forEach(r=>{
-    if(!r.item_name||!r.unit_price||Number(r.unit_price)<=0) return;
-    // Group by normalized name + unit + supplier (across both branches)
-    const key=normItem(r.item_name)+'||'+normUnit(r.unit)+'||'+(r.supplier||'');
-    if(!groups[key]) groups[key]={item:r.item_name,unit:normUnit(r.unit),supplier:r.supplier||'',entries:[]};
-    groups[key].entries.push({date:r.date,price:Number(r.unit_price)});
-  });
-  const rows=[];
-  Object.values(groups).forEach(g=>{
-    if(g.entries.length<2) return;
-    g.entries.sort((a,b)=>a.date.localeCompare(b.date));
-    const latest=g.entries[g.entries.length-1];
-    // Average of all previous entries (not just the latest)
-    const prev=g.entries.slice(0,-1);
-    const avg=prev.reduce((s,e)=>s+e.price,0)/prev.length;
-    const change=(latest.price-avg)/avg*100;
-    rows.push({
-      item:g.item, unit:g.unit, supplier:g.supplier,
-      latest:latest.price, latestDate:latest.date,
-      avg:+avg.toFixed(2), change:+change.toFixed(1),
-      isSpike:change>=3, isDrop:change<=-3,
-      count:g.entries.length,
-      history:g.entries.slice(-8).map(e=>e.price),
-      histFull:g.entries.slice(-12).map(e=>({date:e.date,price:e.price}))
+  // DB view (price_tracker) already aggregated — just map to display format
+  return cachedPriceItems
+    .filter(r=>r.item_name&&r.latest_price!=null&&r.hist_avg!=null)
+    .map(r=>{
+      const change=Number(r.pct_change)||0;
+      const hist=Array.isArray(r.price_history)?r.price_history:[];
+      return {
+        item:r.item_name,
+        unit:r.unit||'',
+        supplier:r.supplier||'',
+        latest:Number(r.latest_price),
+        latestDate:r.latest_date,
+        avg:Number(r.hist_avg),
+        change:+change.toFixed(1),
+        isSpike:change>=3,
+        isDrop:change<=-3,
+        count:r.purchase_count||1,
+        history:hist.slice(-8).map(h=>Number(h.price)),
+        histFull:hist.slice(-12).map(h=>({date:h.date,price:Number(h.price)}))
+      };
     });
-  });
-  return rows;
 }
 
 function miniSparkline(hist){
