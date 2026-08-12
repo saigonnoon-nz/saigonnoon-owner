@@ -379,6 +379,16 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
 
 <!-- OVERVIEW -->
 <div class="section active" id="sec-overview">
+  <!-- MISSING INVOICE ALERT -->
+  <div id="missingAlertBanner" style="display:none;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.35);border-radius:10px;padding:11px 14px;margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+      <span style="font-size:13px">⚠️</span>
+      <span style="font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.5px">Missing Invoices</span>
+      <button onclick="this.closest('#missingAlertBanner').style.display='none'" style="margin-left:auto;background:none;border:none;color:var(--t3);cursor:pointer;font-size:18px;line-height:1;padding:0">×</button>
+    </div>
+    <div id="missingAlertList" style="font-size:11px;color:var(--t2);line-height:1.8"></div>
+    <div style="font-size:10px;color:var(--t3);margin-top:5px">Sales recorded but no invoices entered for these days</div>
+  </div>
   <div class="split-card">
     <div class="split-card-header">
       <div class="split-card-title">Branch Overview</div>
@@ -456,7 +466,9 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
             <input id="bgt_cbd_rev" type="number" placeholder="e.g. 8000" oninput="updateBudgetHints()" style="width:100%;background:var(--s2);border:1px solid var(--border);color:var(--t1);border-radius:6px;padding:6px 9px;font-size:12px;margin-bottom:3px">
             <div id="bgt_cbd_rev_hint" style="font-size:10px;color:var(--t3);margin-bottom:4px"></div>
             <label style="font-size:10px;color:var(--t3);display:block;margin-bottom:2px">Food Cost % Target</label>
-            <input id="bgt_cbd_food_pct" type="number" placeholder="e.g. 30" style="width:100%;background:var(--s2);border:1px solid var(--border);color:var(--t1);border-radius:6px;padding:6px 9px;font-size:12px">
+            <input id="bgt_cbd_food_pct" type="number" placeholder="e.g. 30" style="width:100%;background:var(--s2);border:1px solid var(--border);color:var(--t1);border-radius:6px;padding:6px 9px;font-size:12px;margin-bottom:4px">
+            <label style="font-size:10px;color:var(--t3);display:block;margin-bottom:2px">Labour % Target</label>
+            <input id="bgt_cbd_lab_pct" type="number" placeholder="e.g. 35" style="width:100%;background:var(--s2);border:1px solid var(--border);color:var(--t1);border-radius:6px;padding:6px 9px;font-size:12px">
           </div>
           <div>
             <div style="font-size:10px;font-weight:700;color:var(--roto);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Rototuna</div>
@@ -464,7 +476,9 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
             <input id="bgt_rot_rev" type="number" placeholder="e.g. 10000" oninput="updateBudgetHints()" style="width:100%;background:var(--s2);border:1px solid var(--border);color:var(--t1);border-radius:6px;padding:6px 9px;font-size:12px;margin-bottom:3px">
             <div id="bgt_rot_rev_hint" style="font-size:10px;color:var(--t3);margin-bottom:4px"></div>
             <label style="font-size:10px;color:var(--t3);display:block;margin-bottom:2px">Food Cost % Target</label>
-            <input id="bgt_rot_food_pct" type="number" placeholder="e.g. 30" style="width:100%;background:var(--s2);border:1px solid var(--border);color:var(--t1);border-radius:6px;padding:6px 9px;font-size:12px">
+            <input id="bgt_rot_food_pct" type="number" placeholder="e.g. 30" style="width:100%;background:var(--s2);border:1px solid var(--border);color:var(--t1);border-radius:6px;padding:6px 9px;font-size:12px;margin-bottom:4px">
+            <label style="font-size:10px;color:var(--t3);display:block;margin-bottom:2px">Labour % Target</label>
+            <input id="bgt_rot_lab_pct" type="number" placeholder="e.g. 35" style="width:100%;background:var(--s2);border:1px solid var(--border);color:var(--t1);border-radius:6px;padding:6px 9px;font-size:12px">
           </div>
         </div>
         <button onclick="saveBudgetTargets()" style="margin-top:10px;background:var(--amber);color:#000;border:none;border-radius:6px;padding:7px 18px;font-weight:700;font-size:12px;cursor:pointer;width:100%">Save</button>
@@ -479,6 +493,17 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
   <div class="two-col">
     <div class="card"><div class="card-title">Sales Channels</div><div id="channelBreakdown"></div></div>
     <div class="card"><div class="card-title">Top Suppliers <span class="accent">by Spend</span></div><table class="tbl"><thead><tr><th>Supplier</th><th>Group</th><th>Amount</th></tr></thead><tbody id="supplierBody"></tbody></table></div>
+  </div>
+  <!-- 8-WEEK TREND -->
+  <div class="card" style="margin-top:0">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div class="card-title" style="margin-bottom:0">📈 8-Week Revenue Trend</div>
+      <div id="trendMode" style="display:flex;gap:4px">
+        <button onclick="setTrendMode('revenue',this)" style="padding:3px 9px;border-radius:5px;font-size:10px;font-weight:700;cursor:pointer;background:var(--amber);color:#000;border:none">Revenue</button>
+        <button onclick="setTrendMode('foodpct',this)" style="padding:3px 9px;border-radius:5px;font-size:10px;font-weight:700;cursor:pointer;background:var(--s2);color:var(--t3);border:1px solid var(--border)">Food %</button>
+      </div>
+    </div>
+    <div class="chart-wrap" style="height:190px"><canvas id="trendChart"></canvas></div>
   </div>
 </div>
 
@@ -796,6 +821,8 @@ const SB_HDR = { 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY, 'Content-Typ
 let period = 'daily';
 let currentDate = new Date();
 let cachedSales=[], cachedInvoices=[], cachedFutureInvoices=[], cachedLastSales=[], cachedLastInvoices=[], allStaff=[], allRoster=[];
+let cachedTrendSales=[], cachedTrendInvoices=[];
+let trendChartInst=null;
 let rosterLabour={CBD:{cost:0,hours:0},Rototuna:{cost:0,hours:0}}; // single source of truth for weekly labour
 let salesChartInst=null, costChartInst=null, fohbohCBDInst=null, fohbohROTInst=null;
 let bSalesInst={}, bChannelInst={}, supplierChartInst=null, supplierCBDInst=null, supplierROTInst=null;
@@ -947,6 +974,7 @@ async function loadAll() {
   const d14ago=localDateStr(new Date(Date.now()-14*864e5));
   const lastStart=localDateStr(new Date(new Date(start).getTime()-7*864e5));
   const lastEnd=localDateStr(new Date(new Date(end).getTime()-7*864e5));
+  const d8wAgo=localDateStr(new Date(Date.now()-56*864e5));
   const results=await Promise.allSettled([
     sbGet('sales','branch=neq.null&date=gte.'+start+'&date=lte.'+end+'&order=date'),
     sbGet('invoices','branch=neq.null&date=gte.'+start+'&date=lte.'+end+'&order=date'),
@@ -955,11 +983,14 @@ async function loadAll() {
     sbGet('invoices','branch=neq.null&date=gte.'+lastStart+'&date=lte.'+lastEnd+'&order=date'),
     sbGet('staff','order=branch,position,name'),
     sbGet('roster','week_start=eq.'+rosterWeekStart+'&order=branch,shift_num'),
+    sbGet('sales','branch=neq.null&date=gte.'+d8wAgo+'&order=date'),
+    sbGet('invoices','branch=neq.null&date=gte.'+d8wAgo+'&order=date'),
   ]);
   const ok=r=>r.status==='fulfilled'?r.value:[];
   cachedSales=ok(results[0]); cachedInvoices=ok(results[1]); cachedFutureInvoices=ok(results[2]);
   cachedLastSales=ok(results[3]); cachedLastInvoices=ok(results[4]);
   allStaff=ok(results[5]); allRoster=ok(results[6]);
+  cachedTrendSales=ok(results[7]); cachedTrendInvoices=ok(results[8]);
   const anyFailed=results.some(r=>r.status==='rejected');
   if(anyFailed){
     const failNames=['sales','invoices','future inv','last sales','last inv','staff','roster'];
@@ -971,6 +1002,7 @@ async function loadAll() {
   }
   updateHeaderStats(); updateRosterWeekLabel();
   renderLabour(); renderSplitView(); renderPL(); renderOverview(); renderBranches(); renderFoodCost(); renderCashFlow();
+  renderMissingAlerts(); renderTrendChart();
   if($('sec-assistant').classList.contains('active')) updateAssistantSnapshotFull();
 }
 function updateHeaderStats(){
@@ -995,7 +1027,7 @@ function goToCurrentRosterWeek(){ rosterWeekStart=getMondayStr(new Date()); shif
 // ══════ BUDGET ══════
 function getBudgets(){ return JSON.parse(localStorage.getItem('sn_budgets')||'{}'); }
 function saveBudgetTargets(){
-  const b={CBD:{rev:parseFloat($('bgt_cbd_rev').value)||0,foodPct:parseFloat($('bgt_cbd_food_pct').value)||0},Rototuna:{rev:parseFloat($('bgt_rot_rev').value)||0,foodPct:parseFloat($('bgt_rot_food_pct').value)||0}};
+  const b={CBD:{rev:parseFloat($('bgt_cbd_rev').value)||0,foodPct:parseFloat($('bgt_cbd_food_pct').value)||0,labPct:parseFloat($('bgt_cbd_lab_pct').value)||0},Rototuna:{rev:parseFloat($('bgt_rot_rev').value)||0,foodPct:parseFloat($('bgt_rot_food_pct').value)||0,labPct:parseFloat($('bgt_rot_lab_pct').value)||0}};
   localStorage.setItem('sn_budgets',JSON.stringify(b));
   $('budgetEditPanel').style.display='none'; $('budgetEditBtn').textContent='Edit'; renderBudget();
 }
@@ -1008,7 +1040,7 @@ function updateBudgetHints(){
 }
 function toggleBudgetEdit(){
   const p=$('budgetEditPanel'),open=p.style.display!=='none';
-  if(!open){const b=getBudgets();['CBD','Rototuna'].forEach(br=>{const k=br==='CBD'?'cbd':'rot',bd=b[br]||{};$('bgt_'+k+'_rev').value=bd.rev||'';$('bgt_'+k+'_food_pct').value=bd.foodPct||'';});updateBudgetHints();}
+  if(!open){const b=getBudgets();['CBD','Rototuna'].forEach(br=>{const k=br==='CBD'?'cbd':'rot',bd=b[br]||{};$('bgt_'+k+'_rev').value=bd.rev||'';$('bgt_'+k+'_food_pct').value=bd.foodPct||'';$('bgt_'+k+'_lab_pct').value=bd.labPct||'';});updateBudgetHints();}
   p.style.display=open?'none':'block'; $('budgetEditBtn').textContent=open?'Edit':'Cancel';
 }
 function renderBudget(){
@@ -1043,6 +1075,8 @@ function renderBudget(){
     }
     if(bd.foodPct){const fp=net?food/net*100:0,fc=fp>bd.foodPct?'var(--red)':fp>bd.foodPct*0.9?'var(--amber)':'var(--green)';
       html+='<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span style="color:var(--t3)">Food %</span><span style="color:'+fc+';font-weight:700">'+fp.toFixed(1)+'% / target '+bd.foodPct+'%</span></div><div style="height:7px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+Math.min(fp/(bd.foodPct||1)*100,100)+'%;background:'+fc+';border-radius:4px;transition:width .5s"></div></div></div>';}
+    if(bd.labPct){const {cost:labCost}=calcLabour(br,start,end);const lp=net?labCost/net*100:0,lc=lp>bd.labPct?'var(--red)':lp>bd.labPct*0.9?'var(--amber)':'var(--green)';
+      html+='<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span style="color:var(--t3)">Labour %</span><span style="color:'+lc+';font-weight:700">'+lp.toFixed(1)+'% / target '+bd.labPct+'%</span></div><div style="height:7px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+Math.min(lp/(bd.labPct||1)*100,100)+'%;background:'+lc+';border-radius:4px;transition:width .5s"></div></div></div>';}
     html+='</div>';
   });
   $('budgetProgress').innerHTML=html+'</div>';
@@ -1140,6 +1174,105 @@ function renderPLIntel(cbdNet,rotNet,rev,cogs,profit){
 
 // ══════ RENDER OVERVIEW ══════
 function renderOverview(){}
+
+// ══════ MISSING INVOICE ALERTS ══════
+function renderMissingAlerts(){
+  const banner=$('missingAlertBanner'); if(!banner) return;
+  const salesDays={};
+  cachedSales.forEach(r=>{
+    if(!r.date||!r.branch) return;
+    const key=r.date+'|'+r.branch;
+    salesDays[key]=(salesDays[key]||0)+(Number(r.gross_total)||0);
+  });
+  const invDays=new Set();
+  cachedInvoices.forEach(r=>{ if(r.date&&r.branch) invDays.add(r.date+'|'+r.branch); });
+  const missing=[];
+  Object.entries(salesDays).forEach(([key,gross])=>{
+    if(gross>0&&!invDays.has(key)){
+      const [date,branch]=key.split('|');
+      const d=new Date(date+'T12:00:00');
+      const lbl=d.toLocaleDateString('en-NZ',{weekday:'short',day:'numeric',month:'short'});
+      missing.push({lbl,branch,date});
+    }
+  });
+  if(!missing.length){banner.style.display='none';return;}
+  missing.sort((a,b)=>a.date.localeCompare(b.date));
+  banner.style.display='block';
+  $('missingAlertList').innerHTML=missing.map(m=>
+    '<span style="display:inline-block;background:rgba(251,191,36,.15);border-radius:4px;padding:1px 8px;margin:2px 3px 2px 0;color:var(--amber)">'+
+    m.branch+' · '+m.lbl+'</span>'
+  ).join('');
+}
+
+// ══════ 8-WEEK TREND CHART ══════
+let _trendMode='revenue';
+function setTrendMode(mode,btn){
+  _trendMode=mode;
+  document.querySelectorAll('#trendMode button').forEach(b=>{
+    b.style.background=b===btn?'var(--amber)':'var(--s2)';
+    b.style.color=b===btn?'#000':'var(--t3)';
+    b.style.border=b===btn?'none':'1px solid var(--border)';
+  });
+  renderTrendChart();
+}
+function renderTrendChart(){
+  const ctx=document.getElementById('trendChart'); if(!ctx) return;
+  // Build 8 Monday-anchored weeks ending this week
+  const weeks=[];
+  const today=new Date(); today.setHours(12,0,0,0);
+  const thisMon=new Date(today); thisMon.setDate(today.getDate()-((today.getDay()+6)%7));
+  for(let i=7;i>=0;i--){
+    const mon=new Date(thisMon); mon.setDate(thisMon.getDate()-i*7);
+    const sun=new Date(mon); sun.setDate(mon.getDate()+6);
+    weeks.push({
+      start:localDateStr(mon),end:localDateStr(sun),
+      label:mon.toLocaleDateString('en-NZ',{day:'numeric',month:'short'})
+    });
+  }
+  // Aggregate
+  const rev={CBD:weeks.map(()=>0),Rototuna:weeks.map(()=>0)};
+  const food={CBD:weeks.map(()=>0),Rototuna:weeks.map(()=>0)};
+  const net={CBD:weeks.map(()=>0),Rototuna:weeks.map(()=>0)};
+  cachedTrendSales.forEach(r=>{
+    const wi=weeks.findIndex(w=>r.date>=w.start&&r.date<=w.end);
+    if(wi<0||!r.branch) return;
+    rev[r.branch][wi]+=(Number(r.gross_total)||0);
+    net[r.branch][wi]+=(Number(r.net_total)||0);
+  });
+  cachedTrendInvoices.forEach(r=>{
+    const wi=weeks.findIndex(w=>r.date>=w.start&&r.date<=w.end);
+    if(wi<0||!r.branch) return;
+    food[r.branch][wi]+=(Number(r.amount)||0);
+  });
+  let datasets;
+  if(_trendMode==='revenue'){
+    datasets=[
+      {label:'CBD Revenue',data:rev.CBD,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.12)',tension:.3,fill:true,borderWidth:2,pointRadius:4,pointHoverRadius:6},
+      {label:'Rototuna Revenue',data:rev.Rototuna,borderColor:'#34d399',backgroundColor:'rgba(52,211,153,.08)',tension:.3,fill:true,borderWidth:2,pointRadius:4,pointHoverRadius:6}
+    ];
+  } else {
+    const cbdFoodPct=weeks.map((_,i)=>net.CBD[i]?+(food.CBD[i]/net.CBD[i]*100).toFixed(1):null);
+    const rotFoodPct=weeks.map((_,i)=>net.Rototuna[i]?+(food.Rototuna[i]/net.Rototuna[i]*100).toFixed(1):null);
+    datasets=[
+      {label:'CBD Food %',data:cbdFoodPct,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.1)',tension:.3,fill:false,borderWidth:2,pointRadius:4,pointHoverRadius:6},
+      {label:'Rototuna Food %',data:rotFoodPct,borderColor:'#34d399',backgroundColor:'rgba(52,211,153,.1)',tension:.3,fill:false,borderWidth:2,pointRadius:4,pointHoverRadius:6}
+    ];
+  }
+  if(trendChartInst) trendChartInst.destroy();
+  trendChartInst=new Chart(ctx.getContext('2d'),{
+    type:'line',
+    data:{labels:weeks.map(w=>w.label),datasets},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#94a3b8',font:{size:10},boxWidth:10}},datalabels:{display:false},
+        tooltip:{callbacks:{label:c=>c.dataset.label+': '+(_trendMode==='revenue'?'$'+Math.round(c.parsed.y).toLocaleString('en-NZ'):c.parsed.y+'%')}}},
+      scales:{
+        x:{ticks:{color:'#475569',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}},
+        y:{ticks:{color:'#475569',font:{size:10},callback:v=>_trendMode==='revenue'?'$'+Math.round(v/1000)+'k':v+'%'},grid:{color:'rgba(255,255,255,.04)'}}
+      }
+    }
+  });
+}
 
 async function generateIntel(){
   $('intelText').textContent='✦ Generating insights…';
