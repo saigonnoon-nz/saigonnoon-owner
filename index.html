@@ -625,15 +625,6 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:
   <div style="font-size:11px;color:var(--t3);margin-bottom:10px;padding:8px 12px;background:var(--s2);border-radius:8px;border-left:3px solid var(--border)">
     📦 Shows unit price history from your invoices — <strong style="color:var(--t2)">both branches combined</strong>. Opens automatically showing items where price changed ≥3%. Click any row to see the full price history with dates.
   </div>
-  <!-- spike alert -->
-  <div id="priceAlertBanner" style="display:none;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);border-radius:10px;padding:11px 14px;margin-bottom:14px">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-      <span style="font-size:13px">🚨</span>
-      <span style="font-size:11px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.5px">Price Spikes Detected</span>
-    </div>
-    <div id="priceAlertList" style="font-size:11px;color:var(--t2);line-height:2"></div>
-    <div style="font-size:10px;color:var(--t3);margin-top:4px">Items where latest unit price changed ≥3% vs historical average</div>
-  </div>
   <!-- controls -->
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
     <input id="priceSearch" type="text" placeholder="Search item or supplier…" oninput="filterPriceTable()" style="flex:1;min-width:160px;background:var(--s2);border:1px solid var(--border);color:var(--t1);border-radius:8px;padding:7px 11px;font-size:13px">
@@ -1463,29 +1454,6 @@ function renderPriceTracker(){
     const supSel=$('priceSupplier');
     const curSup=supSel.value;
     supSel.innerHTML='<option value="">All Suppliers</option>'+sups.map(s=>'<option'+(s===curSup?' selected':'')+'>'+s+'</option>').join('');
-    // Alert banner: show price INCREASES ≥3%
-    const increased=_priceRows.filter(r=>r.isSpike).sort((a,b)=>b.change-a.change);
-    const dropped=_priceRows.filter(r=>r.isDrop).sort((a,b)=>a.change-b.change);
-    const banner=$('priceAlertBanner');
-    if(increased.length||dropped.length){
-      banner.style.display='block';
-      let html='';
-      increased.forEach(r=>{
-        html+='<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(248,113,113,.12);border-radius:4px;padding:2px 9px;margin:2px 3px 2px 0">'+
-          '<span style="color:var(--red);font-weight:700">▲ +'+r.change.toFixed(0)+'%</span>'+
-          '<span style="color:var(--t2)">'+r.item+'</span>'+
-          '<span style="color:var(--t3);font-size:10px">$'+r.avg.toFixed(2)+'→$'+r.latest.toFixed(2)+'/'+r.unit+'</span>'+
-          '</span>';
-      });
-      dropped.forEach(r=>{
-        html+='<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(52,211,153,.10);border-radius:4px;padding:2px 9px;margin:2px 3px 2px 0">'+
-          '<span style="color:var(--green);font-weight:700">▼ '+r.change.toFixed(0)+'%</span>'+
-          '<span style="color:var(--t2)">'+r.item+'</span>'+
-          '<span style="color:var(--t3);font-size:10px">$'+r.avg.toFixed(2)+'→$'+r.latest.toFixed(2)+'/'+r.unit+'</span>'+
-          '</span>';
-      });
-      $('priceAlertList').innerHTML=html;
-    } else { banner.style.display='none'; }
     filterPriceTable();
   }catch(e){ console.error('renderPriceTracker error',e); }
 }
@@ -1503,12 +1471,15 @@ function filterPriceTable(){
       return true;
     });
     rows.sort((a,b)=>{
-      let va,vb;
-      if(_priceSort.col==='item'){va=a.item.toLowerCase();vb=b.item.toLowerCase();}
-      else if(_priceSort.col==='latest'){va=a.latest;vb=b.latest;}
-      else if(_priceSort.col==='avg'){va=a.avg;vb=b.avg;}
-      else{va=Math.abs(a.change);vb=Math.abs(b.change);}
-      return _priceSort.asc?(va>vb?1:-1):(va<vb?1:-1);
+      if(_priceSort.col==='item'){const va=a.item.toLowerCase(),vb=b.item.toLowerCase();return _priceSort.asc?(va>vb?1:-1):(va<vb?1:-1);}
+      if(_priceSort.col==='latest'){return _priceSort.asc?a.latest-b.latest:b.latest-a.latest;}
+      if(_priceSort.col==='avg'){return _priceSort.asc?a.avg-b.avg:b.avg-a.avg;}
+      // Default: increases first (highest % first), then decreases (biggest drop first)
+      const aPos=a.change>=0, bPos=b.change>=0;
+      if(aPos&&!bPos) return -1;
+      if(!aPos&&bPos) return 1;
+      if(aPos) return b.change-a.change;
+      return a.change-b.change;
     });
     _priceDisplayRows=rows;
     _priceExpandedIdx=-1;
