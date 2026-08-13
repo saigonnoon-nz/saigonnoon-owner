@@ -940,6 +940,7 @@ function showSection(id,el) {
   if(id==='salesintel'){const w=$('siWeekDate');if(!w.value)w.value=getMondayStr(new Date());siLoadResults(w.value);}
   if(id==='cashflow'){ renderForecast(); renderReconcile(); renderBills(); renderCashTxns(); }
   if(id==='assistant') updateAssistantSnapshotFull();
+  if(id==='prices') renderPriceTracker();
 }
 function setLabourTab(tab) {
   labourSubTab=tab;
