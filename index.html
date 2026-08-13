@@ -949,6 +949,7 @@ function setLabourTab(tab) {
 // ══════ SUPABASE ══════
 async function sbGet(table,params){ const r=await fetch(SB_URL+'/rest/v1/'+table+'?'+(params||''),{headers:SB_HDR}); if(!r.ok) throw new Error(await r.text()); return r.json(); }
 async function sbPost(table,body){ const r=await fetch(SB_URL+'/rest/v1/'+table,{method:'POST',headers:SB_HDR,body:JSON.stringify(body)}); if(!r.ok) throw new Error(await r.text()); return r.json(); }
+async function sbRpc(fn,params={}){ const r=await fetch(SB_URL+'/rest/v1/rpc/'+fn,{method:'POST',headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'},body:JSON.stringify(params)}); if(!r.ok) throw new Error(await r.text()); return r.json(); }
 async function sbPatch(table,id,body){ const r=await fetch(SB_URL+'/rest/v1/'+table+'?id=eq.'+id,{method:'PATCH',headers:SB_HDR,body:JSON.stringify(body)}); if(!r.ok) throw new Error(await r.text()); return r.json(); }
 async function sbDelete(table,id){ const r=await fetch(SB_URL+'/rest/v1/'+table+'?id=eq.'+id,{method:'DELETE',headers:SB_HDR}); if(!r.ok) throw new Error(await r.text()); }
 
@@ -1040,7 +1041,7 @@ async function loadAll() {
   cachedTrendSales=ok(results[7]); cachedTrendInvoices=ok(results[8]);
   // Fetch pre-aggregated price data via DB function (no row limits, bypasses RLS)
   try {
-    const priceData=await sbPost('rpc/get_price_tracker',{});
+    const priceData=await sbRpc('get_price_summary');
     cachedPriceItems=Array.isArray(priceData)?priceData:[];
   } catch(e){ console.warn('Price tracker RPC error:',e); cachedPriceItems=[]; }
   const anyFailed=results.some(r=>r.status==='rejected');
@@ -1418,10 +1419,8 @@ function normUnit(u){
 function normItem(s){ return (s||'').toLowerCase().trim().replace(/\s+/g,' '); }
 
 function buildPriceRows(){
-  // cachedPriceItems comes pre-aggregated from get_price_tracker() DB function
   return cachedPriceItems.map(r=>{
     const change=Number(r.pct_change)||0;
-    const hist=Array.isArray(r.price_history)?r.price_history:[];
     return {
       item:r.item_name||'',
       unit:r.unit||'',
@@ -1432,9 +1431,7 @@ function buildPriceRows(){
       change:+change.toFixed(1),
       isSpike:change>=3,
       isDrop:change<=-3,
-      count:Number(r.purchase_count)||1,
-      history:hist.slice(-8).map(h=>Number(h.price)),
-      histFull:hist.slice(-12).map(h=>({date:h.date,price:Number(h.price)}))
+      count:Number(r.purchase_count)||1
     };
   });
 }
@@ -1534,31 +1531,17 @@ function filterPriceTable(){
       const c=r.change;
       const rowBg=r.isSpike?'background:rgba(248,113,113,.05)':r.isDrop?'background:rgba(52,211,153,.05)':'';
       html+='<tr style="'+rowBg+';cursor:pointer" onclick="togglePriceHistory('+i+')">'+
-        '<td><span style="font-weight:600;color:var(--t1)">'+r.item+'</span><span style="font-size:10px;color:var(--t3);margin-left:4px">'+r.unit+'</span>'+miniSparkline(r.history)+'</td>'+
+        '<td><span style="font-weight:600;color:var(--t1)">'+r.item+'</span><span style="font-size:10px;color:var(--t3);margin-left:4px">'+r.unit+'</span></td>'+
         '<td style="color:var(--t3);font-size:11px">'+r.supplier+'</td>'+
         '<td style="text-align:right;font-weight:700;color:var(--t1)">$'+r.latest.toFixed(2)+'</td>'+
         '<td style="text-align:right;color:var(--t3)">$'+r.avg.toFixed(2)+'</td>'+
         '<td style="text-align:right;font-weight:700;color:'+chgColor(c)+'">'+chgIcon(c)+' '+Math.abs(c).toFixed(1)+'%</td>'+
-        '<td style="text-align:right;color:var(--t3);font-size:10px">'+dLbl+'</td>'+
+        '<td style="text-align:right;color:var(--t3);font-size:10px">'+dLbl+' <span style="opacity:.4">('+r.count+'×)</span></td>'+
       '</tr>';
-      // Expandable history row
+      // Expandable history row — content loaded on click
       html+='<tr id="priceHist_'+i+'" style="display:none;background:var(--s1)">'+
-        '<td colspan="6" style="padding:10px 14px">'+
-          '<div style="font-size:10px;color:var(--t3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Price history — '+r.item+' / '+r.unit+'</div>'+
-          '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
-            r.histFull.map((h,hi)=>{
-              const hd=new Date(h.date+'T12:00:00');
-              const hdLbl=hd.toLocaleDateString('en-NZ',{day:'numeric',month:'short',year:'2-digit'});
-              const prevP=hi>0?r.histFull[hi-1].price:null;
-              const delta=prevP!=null?((h.price-prevP)/prevP*100):null;
-              const dotClr=delta==null?'var(--t3)':delta>=3?'var(--red)':delta<=-3?'var(--green)':'var(--amber)';
-              return '<div style="background:var(--s2);border-radius:6px;padding:5px 10px;text-align:center;min-width:72px">'+
-                '<div style="font-size:9px;color:var(--t3)">'+hdLbl+'</div>'+
-                '<div style="font-size:13px;font-weight:700;color:var(--t1);margin:2px 0">$'+h.price.toFixed(2)+'</div>'+
-                (delta!=null?'<div style="font-size:9px;color:'+dotClr+'">'+(delta>=0?'+':'')+delta.toFixed(1)+'%</div>':'<div style="font-size:9px;color:var(--t3)">baseline</div>')+
-              '</div>';
-            }).join('')+
-          '</div>'+
+        '<td colspan="6" style="padding:10px 14px" id="priceHistContent_'+i+'">'+
+          '<span style="color:var(--t3);font-size:12px">Loading history…</span>'+
         '</td>'+
       '</tr>';
     });
@@ -1566,14 +1549,38 @@ function filterPriceTable(){
   }catch(e){ console.error('filterPriceTable error',e); }
 }
 
-function togglePriceHistory(i){
+async function togglePriceHistory(i){
   const el=document.getElementById('priceHist_'+i);
   if(!el) return;
   const isOpen=el.style.display!=='none';
-  // Close all
   _priceDisplayRows.forEach((_,j)=>{const e=document.getElementById('priceHist_'+j);if(e)e.style.display='none';});
-  if(!isOpen) el.style.display='table-row';
-  _priceExpandedIdx=isOpen?-1:i;
+  if(isOpen){_priceExpandedIdx=-1;return;}
+  el.style.display='table-row';
+  _priceExpandedIdx=i;
+  const r=_priceDisplayRows[i];
+  const contentEl=document.getElementById('priceHistContent_'+i);
+  if(!contentEl||contentEl._loaded) return;
+  try{
+    const hist=await sbRpc('get_item_price_history',{p_item:r.item,p_unit:r.unit,p_supplier:r.supplier});
+    if(!Array.isArray(hist)||!hist.length){contentEl.innerHTML='<span style="color:var(--t3);font-size:12px">No history found.</span>';return;}
+    let html='<div style="font-size:10px;color:var(--t3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">'+r.item+' / '+r.unit+' — '+hist.length+' purchases</div><div style="display:flex;gap:6px;flex-wrap:wrap">';
+    hist.forEach((h,hi)=>{
+      const hd=new Date(h.entry_date+'T12:00:00');
+      const hdLbl=hd.toLocaleDateString('en-NZ',{day:'numeric',month:'short',year:'2-digit'});
+      const prev=hi>0?Number(hist[hi-1].unit_price):null;
+      const cur=Number(h.unit_price);
+      const delta=prev!=null?((cur-prev)/prev*100):null;
+      const clr=delta==null?'var(--t3)':delta>=3?'var(--red)':delta<=-3?'var(--green)':'var(--amber)';
+      html+='<div style="background:var(--s2);border-radius:6px;padding:5px 10px;text-align:center;min-width:70px">'+
+        '<div style="font-size:9px;color:var(--t3)">'+hdLbl+'</div>'+
+        '<div style="font-size:13px;font-weight:700;color:var(--t1);margin:2px 0">$'+cur.toFixed(2)+'</div>'+
+        (delta!=null?'<div style="font-size:9px;color:'+clr+'">'+(delta>=0?'+':'')+delta.toFixed(1)+'%</div>':'<div style="font-size:9px;color:var(--t3)">first</div>')+
+      '</div>';
+    });
+    html+='</div>';
+    contentEl.innerHTML=html;
+    contentEl._loaded=true;
+  }catch(e){contentEl.innerHTML='<span style="color:var(--red);font-size:12px">Failed to load history.</span>';}
 }
 
 function setPriceSort(col){
